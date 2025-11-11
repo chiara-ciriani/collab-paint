@@ -13,7 +13,7 @@ Aplicación web de dibujo colaborativo en tiempo real donde múltiples usuarios 
 - **Node.js** + TypeScript
 - **Express** (framework HTTP)
 - **Socket.IO** (comunicación en tiempo real)
-- Deploy: Render / Railway / Fly.io
+- Deploy: Render
 
 ## Estructura del Proyecto
 
@@ -46,12 +46,36 @@ npm run dev
 
 El servidor estará disponible en `http://localhost:3001`
 
-**Nota:** El backend está configurado para aceptar conexiones desde `http://localhost:3000` por defecto. Si necesitas cambiar el puerto del frontend, configura la variable de entorno `FRONTEND_URL` en el backend.
+### Variables de Entorno
 
-## Próximos Pasos
+#### Frontend
 
-- [ ] Implementar canvas básico
-- [ ] Integrar WebSocket para tiempo real
-- [ ] Agregar herramientas de dibujo (color, grosor)
-- [ ] Implementar sistema de rooms compartibles
+Crea un archivo `.env` en la carpeta `frontend/`:
 
+```env
+# URL del backend para conexiones WebSocket
+# Por defecto: http://localhost:3001 (desarrollo local)
+BACKEND_URL=http://localhost:3001
+```
+
+## Arquitectura
+
+### Estructura de Carpetas
+
+```
+frontend/
+├── app/              # Páginas y layouts (Server Components)
+├── components/       # Componentes reutilizables (Client/Server)
+├── hooks/            # Custom hooks
+├── lib/              # Utilidades y constantes
+└── types/            # Tipos TypeScript compartidos
+```
+
+### Prácticas Aplicadas
+
+- ✅ **Server Components por defecto**: Las páginas son Server Components que renderizan Client Components solo donde es necesario
+- ✅ **Custom Hooks**: Lógica de estado extraída a hooks reutilizables (`useStrokesState`)
+- ✅ **Separación de responsabilidades**: Constantes, utilidades y configuración en `lib/`
+- ✅ **Metadata y SEO**: Metadata configurada en todas las páginas
+- ✅ **Manejo de errores**: Páginas `error.tsx` y `loading.tsx` para mejor UX
+- ✅ **Variables de entorno**: Configuración centralizada en `lib/config.ts`
