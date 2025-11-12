@@ -8,6 +8,7 @@ import type {
   UpdateStrokePayload,
   EndStrokePayload,
   ClearCanvasPayload,
+  CursorMovePayload,
 } from "./clientToServerTypes";
 
 const MAX_POINTS_PER_UPDATE = 100;
@@ -223,6 +224,35 @@ export function validateClearCanvasPayload(payload: unknown): ValidationResult<C
     () => ({
       roomId: p.roomId!,
       userId: p.userId,
+    })
+  );
+}
+
+/**
+ * Validate cursor move payload
+ */
+export function validateCursorMovePayload(payload: unknown): ValidationResult<CursorMovePayload> {
+  if (typeof payload !== "object" || payload === null) {
+    return { valid: false, error: "Payload must be an object" };
+  }
+
+  const p = payload as Partial<CursorMovePayload>;
+
+  return validateFields(
+    [
+      { check: isValidRoomId(p.roomId), error: "Invalid roomId format" },
+      { check: isValidUserId(p.userId), error: "Invalid userId format" },
+      { check: isValidPoint(p.position), error: "Invalid position coordinates" },
+      {
+        check: p.color === undefined || isValidColor(p.color),
+        error: "Invalid color format",
+      },
+    ],
+    () => ({
+      roomId: p.roomId!,
+      userId: p.userId!,
+      position: p.position!,
+      color: p.color,
     })
   );
 }

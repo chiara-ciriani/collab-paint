@@ -56,6 +56,10 @@ Crea un archivo `.env.local` en la carpeta `frontend/`:
 # URL del backend para conexiones WebSocket
 # Por defecto: http://localhost:3001 (desarrollo local)
 NEXT_PUBLIC_BACKEND_URL=http://localhost:3001
+
+# Tiempo en milisegundos antes de ocultar el cursor de otros usuarios por inactividad
+# Por defecto: 2000 (2 segundos)
+NEXT_PUBLIC_CURSOR_TIMEOUT_MS=2000
 ```
 
 ## Arquitectura

@@ -36,3 +36,10 @@ export interface ClearCanvasPayload {
   userId?: string;
 }
 
+export interface CursorMovePayload {
+  roomId: string;
+  userId: string;
+  position: Point;
+  color?: string; // Current drawing color
+}
+

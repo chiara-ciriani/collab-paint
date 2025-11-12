@@ -7,6 +7,7 @@ import {
   validateUpdateStrokePayload,
   validateEndStrokePayload,
   validateClearCanvasPayload,
+  validateCursorMovePayload,
 } from "./validators";
 import type {
   ErrorPayload,
@@ -17,6 +18,7 @@ import type {
   CanvasClearedPayload,
   UserJoinedPayload,
   UserLeftPayload,
+  CursorMovePayload,
 } from "./serverToClientTypes";
 
 /**
@@ -207,6 +209,39 @@ export function handleConnection(socket: Socket): void {
     } catch (error) {
       logger.error({ category: "Canvas", socketId: socket.id, err: error }, "Error clearing canvas");
       emitError(socket, "Failed to clear canvas", "CLEAR_ERROR");
+    }
+  });
+
+  // Handle cursor move
+  socket.on("cursor:move", (payload: unknown) => {
+    const validation = validateCursorMovePayload(payload);
+    if (!validation.valid) {
+      logger.warn({ category: "Cursor", socketId: socket.id, error: validation.error }, "Invalid cursor move payload");
+      return;
+    }
+
+    try {
+      const { roomId, userId, position, color } = validation.data;
+
+      const room = roomsService.getRoomStateForClient(roomId);
+      if (!room) return;
+
+      const user = room.users.find((u) => u.userId === userId);
+      if (!user) return;
+
+      const userStroke = room.strokes.find((s) => s.userId === userId);
+      const userColor = color || userStroke?.color || "#000000";
+
+      // Broadcast cursor position to other users in the room
+      const cursorMovePayload: CursorMovePayload = {
+        userId,
+        displayName: user.displayName,
+        position,
+        color: userColor,
+      };
+      socket.to(roomId).emit("cursor:move", cursorMovePayload);
+    } catch (error) {
+      logger.error({ category: "Cursor", socketId: socket.id, err: error }, "Error handling cursor move");
     }
   });
 

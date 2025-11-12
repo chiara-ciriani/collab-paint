@@ -50,3 +50,10 @@ export interface ErrorPayload {
   code?: string;
 }
 
+export interface CursorMovePayload {
+  userId: string;
+  displayName?: string;
+  position: Point;
+  color: string;
+}
+

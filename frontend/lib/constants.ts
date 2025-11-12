@@ -39,3 +39,8 @@ export function generateStrokeId(): string {
   return `stroke-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
+/**
+ * LocalStorage key for storing user nickname
+ */
+export const NICKNAME_STORAGE_KEY = "collaborative-paint-nickname";
+

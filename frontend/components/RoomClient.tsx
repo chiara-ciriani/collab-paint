@@ -1,15 +1,18 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Canvas from "@/components/Canvas";
 import Toolbar from "@/components/Toolbar";
+import UsersList from "@/components/UsersList";
+import CursorIndicator from "@/components/CursorIndicator";
 import { useStrokesState } from "@/hooks/useStrokesState";
 import { useRoomSocket } from "@/hooks/useRoomSocket";
-import { DEFAULT_COLOR, DEFAULT_THICKNESS, generateUserId } from "@/lib/constants";
+import { DEFAULT_COLOR, DEFAULT_THICKNESS, generateUserId, NICKNAME_STORAGE_KEY } from "@/lib/constants";
+import { config } from "@/lib/config";
 import { copyToClipboard, getRoomUrl } from "@/lib/utils";
-import type { Stroke } from "@/types";
+import type { Stroke, Point } from "@/types";
 
 interface RoomClientProps {
   roomId: string;
@@ -20,6 +23,17 @@ export default function RoomClient({ roomId }: RoomClientProps) {
   const [currentColor, setCurrentColor] = useState(DEFAULT_COLOR);
   const [currentThickness, setCurrentThickness] = useState(DEFAULT_THICKNESS);
   const [userId] = useState(() => generateUserId());
+
+  const [displayName] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(NICKNAME_STORAGE_KEY) || undefined;
+    }
+    return undefined;
+  });
+  const [users, setUsers] = useState<Array<{ userId: string; displayName?: string }>>([]);
+  const activeDrawersRef = useRef<Set<string>>(new Set());
+  const [activeDrawers, setActiveDrawers] = useState<Set<string>>(new Set());
+  const [cursors, setCursors] = useState<Map<string, { position: Point; displayName?: string; color: string }>>(new Map());
 
   const {
     strokes,
@@ -37,10 +51,11 @@ export default function RoomClient({ roomId }: RoomClientProps) {
     userId,
   });
 
-  // Handle room state from server - initialize strokes
+  // Handle room state from server - initialize strokes and users
   const handleRoomState = useCallback(
     (state: { roomId: string; strokes: Stroke[]; users: Array<{ userId: string; displayName?: string }> }) => {
       applyRoomState(state.strokes);
+      setUsers(state.users);
     },
     [applyRoomState]
   );
@@ -48,6 +63,9 @@ export default function RoomClient({ roomId }: RoomClientProps) {
   // Handle stroke events from server
   const handleStrokeStarted = useCallback(
     (payload: { strokeId: string; userId: string; color: string; thickness: number; startPoint: { x: number; y: number } }) => {
+      activeDrawersRef.current.add(payload.userId);
+      setActiveDrawers(new Set(activeDrawersRef.current));
+      
       // Only apply if it's from another user
       if (payload.userId !== userId) {
         applyStrokeStarted(payload);
@@ -66,32 +84,120 @@ export default function RoomClient({ roomId }: RoomClientProps) {
   const handleStrokeEnded = useCallback(
     (payload: { strokeId: string }) => {
       applyStrokeEnded(payload);
+
+      const stroke = strokes.find((s) => s.id === payload.strokeId);
+      if (stroke) {
+        activeDrawersRef.current.delete(stroke.userId);
+        setActiveDrawers(new Set(activeDrawersRef.current));
+      }
     },
-    [applyStrokeEnded]
+    [applyStrokeEnded, strokes]
   );
 
   const handleCanvasCleared = useCallback(() => {
     applyCanvasCleared();
+    // Clear all active drawers
+    activeDrawersRef.current.clear();
+    setActiveDrawers(new Set());
   }, [applyCanvasCleared]);
+
+  const handleUserJoined = useCallback(
+    (payload: { userId: string; displayName?: string }) => {
+      setUsers((prev) => {
+        if (prev.some((u) => u.userId === payload.userId)) {
+          return prev;
+        }
+        return [...prev, payload];
+      });
+    },
+    []
+  );
+
+  const handleUserLeft = useCallback((payload: { userId: string }) => {
+    setUsers((prev) => prev.filter((u) => u.userId !== payload.userId));
+    activeDrawersRef.current.delete(payload.userId);
+    setActiveDrawers(new Set(activeDrawersRef.current));
+
+    setCursors((prev) => {
+      const next = new Map(prev);
+      next.delete(payload.userId);
+      return next;
+    });
+  }, []);
+
+  const cursorTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  const handleCursorMove = useCallback(
+    (payload: { userId: string; displayName?: string; position: Point; color: string }) => {
+      // Only show cursor for other users
+      if (payload.userId !== userId) {
+        // Clear existing timeout for this user
+        const existingTimeout = cursorTimeoutsRef.current.get(payload.userId);
+        if (existingTimeout) {
+          clearTimeout(existingTimeout);
+        }
+
+        setCursors((prev) => {
+          const next = new Map(prev);
+          next.set(payload.userId, {
+            position: payload.position,
+            displayName: payload.displayName,
+            color: payload.color,
+          });
+          return next;
+        });
+
+        // Set timeout to remove cursor after inactivity
+        const timeout = setTimeout(() => {
+          setCursors((prev) => {
+            const next = new Map(prev);
+            next.delete(payload.userId);
+            return next;
+          });
+          cursorTimeoutsRef.current.delete(payload.userId);
+        }, config.cursorTimeoutMs);
+
+        cursorTimeoutsRef.current.set(payload.userId, timeout);
+      }
+    },
+    [userId]
+  );
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    const timeouts = cursorTimeoutsRef.current;
+    return () => {
+      timeouts.forEach((timeout) => clearTimeout(timeout));
+      timeouts.clear();
+    };
+  }, []);
 
   const handleSocketError = useCallback((error: { message: string; code?: string }) => {
     toast.error(`Error de conexión: ${error.message}`);
   }, []);
 
   // Socket connection
-  const { isConnected, emitStrokeStart, emitStrokeUpdate, emitStrokeEnd, emitClearCanvas } = useRoomSocket({
+  const { isConnected, emitStrokeStart, emitStrokeUpdate, emitStrokeEnd, emitClearCanvas, emitCursorMove } = useRoomSocket({
     roomId,
+    userId,
+    displayName,
     onRoomState: handleRoomState,
     onStrokeStarted: handleStrokeStarted,
     onStrokeUpdated: handleStrokeUpdated,
     onStrokeEnded: handleStrokeEnded,
     onCanvasCleared: handleCanvasCleared,
+    onUserJoined: handleUserJoined,
+    onUserLeft: handleUserLeft,
+    onCursorMove: handleCursorMove,
     onError: handleSocketError,
   });
 
   const handleStrokeStart = useCallback(
     (point: { x: number; y: number }) => {
       const strokeId = startStroke(point, currentColor, currentThickness);
+      
+      activeDrawersRef.current.add(userId);
+      setActiveDrawers(new Set(activeDrawersRef.current));
       
       // Emit to server for other users
       emitStrokeStart({
@@ -156,13 +262,16 @@ export default function RoomClient({ roomId }: RoomClientProps) {
             </div>
           </div>
         </div>
-        <button
-          onClick={handleCopyLink}
-          className="px-5 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
-          aria-label="Copiar link de la sala"
-        >
-          📋 Copiar link
-        </button>
+        <div className="flex items-center gap-3">
+          <UsersList users={users} currentUserId={userId} activeDrawers={activeDrawers} />
+          <button
+            onClick={handleCopyLink}
+            className="px-5 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+            aria-label="Copiar link de la sala"
+          >
+            📋 Copiar link
+          </button>
+        </div>
       </header>
 
       <Toolbar
@@ -193,8 +302,11 @@ export default function RoomClient({ roomId }: RoomClientProps) {
             onStrokeMove={(point) => {
               updateStroke(point);
               
-              // Emit to server if we have an active stroke
+              // Emit cursor position when drawing
               if (currentStrokeId) {
+                emitCursorMove(point, currentColor);
+                
+                // Emit to server if active stroke
                 emitStrokeUpdate({
                   strokeId: currentStrokeId,
                   points: [point],
@@ -205,6 +317,15 @@ export default function RoomClient({ roomId }: RoomClientProps) {
               // Update local state
               endStroke();
               
+              activeDrawersRef.current.delete(userId);
+              setActiveDrawers(new Set(activeDrawersRef.current));
+              
+              setCursors((prev) => {
+                const next = new Map(prev);
+                next.delete(userId);
+                return next;
+              });
+              
               // Emit to server if we have an active stroke
               if (currentStrokeId) {
                 emitStrokeEnd({
@@ -213,6 +334,18 @@ export default function RoomClient({ roomId }: RoomClientProps) {
               }
             }}
           />
+          {Array.from(cursors.entries()).map(([cursorUserId, cursorData]) => {
+            const user = users.find((u) => u.userId === cursorUserId);
+            return (
+              <CursorIndicator
+                key={cursorUserId}
+                userId={cursorUserId}
+                displayName={user?.displayName || cursorData.displayName}
+                position={cursorData.position}
+                color={cursorData.color}
+              />
+            );
+          })}
         </div>
       </div>
     </div>
