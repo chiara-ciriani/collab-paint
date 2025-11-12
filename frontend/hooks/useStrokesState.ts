@@ -3,6 +3,11 @@
 import { useState, useCallback } from "react";
 import type { Point, Stroke } from "@/types";
 import { generateStrokeId } from "@/lib/constants";
+import type {
+  StrokeStartedPayload,
+  StrokeUpdatedPayload,
+  StrokeEndedPayload,
+} from "@/types/serverToClientTypes";
 
 interface UseStrokesStateOptions {
   userId: string;
@@ -11,10 +16,16 @@ interface UseStrokesStateOptions {
 interface UseStrokesStateReturn {
   strokes: Stroke[];
   currentStrokeId: string | null;
-  startStroke: (point: Point, color: string, thickness: number) => void;
+  startStroke: (point: Point, color: string, thickness: number) => string; // Returns strokeId
   updateStroke: (point: Point) => void;
   endStroke: () => void;
   clearStrokes: () => void;
+  // Server event handlers
+  applyRoomState: (strokes: Stroke[]) => void;
+  applyStrokeStarted: (payload: StrokeStartedPayload) => void;
+  applyStrokeUpdated: (payload: StrokeUpdatedPayload) => void;
+  applyStrokeEnded: (payload: StrokeEndedPayload) => void;
+  applyCanvasCleared: () => void;
 }
 
 /**
@@ -28,7 +39,7 @@ export function useStrokesState({
   const [currentStrokeId, setCurrentStrokeId] = useState<string | null>(null);
 
   const startStroke = useCallback(
-    (point: Point, color: string, thickness: number) => {
+    (point: Point, color: string, thickness: number): string => {
       const strokeId = generateStrokeId();
       setCurrentStrokeId(strokeId);
 
@@ -42,6 +53,7 @@ export function useStrokesState({
       };
 
       setStrokes((prev) => [...prev, newStroke]);
+      return strokeId;
     },
     [userId]
   );
@@ -70,6 +82,50 @@ export function useStrokesState({
     setCurrentStrokeId(null);
   }, []);
 
+  // Server event handlers
+  const applyRoomState = useCallback((serverStrokes: Stroke[]) => {
+    setStrokes(serverStrokes);
+    setCurrentStrokeId(null);
+  }, []);
+
+  const applyStrokeStarted = useCallback((payload: StrokeStartedPayload) => {
+    // Only apply if it's not from current user
+    setStrokes((prev) => {
+      const exists = prev.some((s) => s.id === payload.strokeId);
+      if (exists) return prev;
+
+      const newStroke: Stroke = {
+        id: payload.strokeId,
+        userId: payload.userId,
+        color: payload.color,
+        thickness: payload.thickness,
+        points: [payload.startPoint],
+        createdAt: Date.now(),
+      };
+
+      return [...prev, newStroke];
+    });
+  }, []);
+
+  const applyStrokeUpdated = useCallback((payload: StrokeUpdatedPayload) => {
+    setStrokes((prev) =>
+      prev.map((stroke) =>
+        stroke.id === payload.strokeId
+          ? { ...stroke, points: [...stroke.points, ...payload.points] }
+          : stroke
+      )
+    );
+  }, []);
+
+  const applyStrokeEnded = useCallback((payload: StrokeEndedPayload) => {
+    setCurrentStrokeId((prev) => (prev === payload.strokeId ? null : prev));
+  }, []);
+
+  const applyCanvasCleared = useCallback(() => {
+    setStrokes([]);
+    setCurrentStrokeId(null);
+  }, []);
+
   return {
     strokes,
     currentStrokeId,
@@ -77,6 +133,10 @@ export function useStrokesState({
     updateStroke,
     endStroke,
     clearStrokes,
+    applyRoomState,
+    applyStrokeStarted,
+    applyStrokeUpdated,
+    applyStrokeEnded,
+    applyCanvasCleared,
   };
 }
-

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Canvas from "@/components/Canvas";
@@ -23,10 +23,16 @@ export default function RoomClient({ roomId }: RoomClientProps) {
 
   const {
     strokes,
+    currentStrokeId,
     startStroke,
     updateStroke,
     endStroke,
     clearStrokes,
+    applyRoomState,
+    applyStrokeStarted,
+    applyStrokeUpdated,
+    applyStrokeEnded,
+    applyCanvasCleared,
   } = useStrokesState({
     userId,
   });
@@ -34,49 +40,82 @@ export default function RoomClient({ roomId }: RoomClientProps) {
   // Handle room state from server - initialize strokes
   const handleRoomState = useCallback(
     (state: { roomId: string; strokes: Stroke[]; users: Array<{ userId: string; displayName?: string }> }) => {
-      // TO DO: initialize the local strokes when receiving room state
-      console.log("[Room] Received room state:", {
-        roomId: state.roomId,
-        strokesCount: state.strokes.length,
-        usersCount: state.users.length,
-      });
+      applyRoomState(state.strokes);
     },
-    []
+    [applyRoomState]
   );
+
+  // Handle stroke events from server
+  const handleStrokeStarted = useCallback(
+    (payload: { strokeId: string; userId: string; color: string; thickness: number; startPoint: { x: number; y: number } }) => {
+      // Only apply if it's from another user
+      if (payload.userId !== userId) {
+        applyStrokeStarted(payload);
+      }
+    },
+    [userId, applyStrokeStarted]
+  );
+
+  const handleStrokeUpdated = useCallback(
+    (payload: { strokeId: string; points: { x: number; y: number }[] }) => {
+      applyStrokeUpdated(payload);
+    },
+    [applyStrokeUpdated]
+  );
+
+  const handleStrokeEnded = useCallback(
+    (payload: { strokeId: string }) => {
+      applyStrokeEnded(payload);
+    },
+    [applyStrokeEnded]
+  );
+
+  const handleCanvasCleared = useCallback(() => {
+    applyCanvasCleared();
+  }, [applyCanvasCleared]);
 
   const handleSocketError = useCallback((error: { message: string; code?: string }) => {
     toast.error(`Error de conexión: ${error.message}`);
   }, []);
 
   // Socket connection
-  const { isConnected, roomState } = useRoomSocket({
+  const { isConnected, emitStrokeStart, emitStrokeUpdate, emitStrokeEnd, emitClearCanvas } = useRoomSocket({
     roomId,
     onRoomState: handleRoomState,
+    onStrokeStarted: handleStrokeStarted,
+    onStrokeUpdated: handleStrokeUpdated,
+    onStrokeEnded: handleStrokeEnded,
+    onCanvasCleared: handleCanvasCleared,
     onError: handleSocketError,
   });
 
-  // Sync strokes from server state when it arrives
-  useEffect(() => {
-    if (roomState && roomState.strokes.length > 0) {
-      // TODO: sync strokes from server
-      console.log("[Room] Room has", roomState.strokes.length, "strokes from server");
-    }
-  }, [roomState]);
-
   const handleStrokeStart = useCallback(
     (point: { x: number; y: number }) => {
-      startStroke(point, currentColor, currentThickness);
+      const strokeId = startStroke(point, currentColor, currentThickness);
+      
+      // Emit to server for other users
+      emitStrokeStart({
+        strokeId,
+        userId,
+        color: currentColor,
+        thickness: currentThickness,
+        startPoint: point,
+      });
     },
-    [startStroke, currentColor, currentThickness]
+    [startStroke, currentColor, currentThickness, userId, emitStrokeStart]
   );
 
   const handleClear = useCallback(() => {
     if (
       window.confirm("¿Estás seguro de que quieres limpiar el lienzo?")
     ) {
+      // Clear local state immediately
       clearStrokes();
+      
+      // Emit to server for other users
+      emitClearCanvas(userId);
     }
-  }, [clearStrokes]);
+  }, [clearStrokes, emitClearCanvas, userId]);
 
   const handleCopyLink = useCallback(async () => {
     const url = getRoomUrl(roomId);
@@ -151,8 +190,28 @@ export default function RoomClient({ roomId }: RoomClientProps) {
             currentColor={currentColor}
             currentThickness={currentThickness}
             onStrokeStart={handleStrokeStart}
-            onStrokeMove={updateStroke}
-            onStrokeEnd={endStroke}
+            onStrokeMove={(point) => {
+              updateStroke(point);
+              
+              // Emit to server if we have an active stroke
+              if (currentStrokeId) {
+                emitStrokeUpdate({
+                  strokeId: currentStrokeId,
+                  points: [point],
+                });
+              }
+            }}
+            onStrokeEnd={() => {
+              // Update local state
+              endStroke();
+              
+              // Emit to server if we have an active stroke
+              if (currentStrokeId) {
+                emitStrokeEnd({
+                  strokeId: currentStrokeId,
+                });
+              }
+            }}
           />
         </div>
       </div>
