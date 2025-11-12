@@ -1,0 +1,38 @@
+/**
+ * Payload types for Socket.IO events
+ * Client → Server
+ */
+
+import type { Point } from "../rooms/types";
+
+export interface JoinRoomPayload {
+  roomId: string;
+  userId: string;
+  displayName?: string;
+}
+
+export interface StartStrokePayload {
+  roomId: string;
+  strokeId: string;
+  userId: string;
+  color: string;
+  thickness: number;
+  startPoint: Point;
+}
+
+export interface UpdateStrokePayload {
+  roomId: string;
+  strokeId: string;
+  points: Point[];
+}
+
+export interface EndStrokePayload {
+  roomId: string;
+  strokeId: string;
+}
+
+export interface ClearCanvasPayload {
+  roomId: string;
+  userId?: string;
+}
+
