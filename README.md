@@ -50,12 +50,12 @@ El servidor estará disponible en `http://localhost:3001`
 
 #### Frontend
 
-Crea un archivo `.env` en la carpeta `frontend/`:
+Crea un archivo `.env.local` en la carpeta `frontend/`:
 
 ```env
 # URL del backend para conexiones WebSocket
 # Por defecto: http://localhost:3001 (desarrollo local)
-BACKEND_URL=http://localhost:3001
+NEXT_PUBLIC_BACKEND_URL=http://localhost:3001
 ```
 
 ## Arquitectura

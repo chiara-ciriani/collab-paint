@@ -1,0 +1,253 @@
+"use client";
+
+import { useEffect, useRef, useState, useCallback } from "react";
+import type { Socket } from "socket.io-client";
+import { createSocket } from "@/lib/socket";
+import { generateUserId } from "@/lib/constants";
+import type {
+  RoomStatePayload,
+  StrokeStartedPayload,
+  StrokeUpdatedPayload,
+  StrokeEndedPayload,
+  CanvasClearedPayload,
+  ErrorPayload,
+} from "@/types/serverToClientTypes";
+import type {
+  JoinRoomPayload,
+  StartStrokePayload,
+  UpdateStrokePayload,
+  EndStrokePayload,
+  ClearCanvasPayload,
+} from "@/types/clientToServerTypes";
+
+interface UseRoomSocketOptions {
+  roomId: string;
+  onRoomState?: (state: RoomStatePayload) => void;
+  onStrokeStarted?: (payload: StrokeStartedPayload) => void;
+  onStrokeUpdated?: (payload: StrokeUpdatedPayload) => void;
+  onStrokeEnded?: (payload: StrokeEndedPayload) => void;
+  onCanvasCleared?: (payload: CanvasClearedPayload) => void;
+  onError?: (error: ErrorPayload) => void;
+}
+
+interface UseRoomSocketReturn {
+  socket: Socket | null;
+  isConnected: boolean;
+  roomState: RoomStatePayload | null;
+  joinRoom: (roomId: string, userId?: string, displayName?: string) => void;
+  emitStrokeStart: (payload: Omit<StartStrokePayload, "roomId">) => void;
+  emitStrokeUpdate: (payload: Omit<UpdateStrokePayload, "roomId">) => void;
+  emitStrokeEnd: (payload: Omit<EndStrokePayload, "roomId">) => void;
+  emitClearCanvas: (userId?: string) => void;
+}
+
+/**
+ * Custom hook to manage Socket.IO connection for a room
+ */
+export function useRoomSocket({
+  roomId,
+  onRoomState,
+  onStrokeStarted,
+  onStrokeUpdated,
+  onStrokeEnded,
+  onCanvasCleared,
+  onError,
+}: UseRoomSocketOptions): UseRoomSocketReturn {
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [roomState, setRoomState] = useState<RoomStatePayload | null>(null);
+  const socketRef = useRef<Socket | null>(null);
+  const userIdRef = useRef<string>(generateUserId());
+  const hasJoinedRef = useRef(false);
+
+  const callbacksRef = useRef({
+    onRoomState,
+    onStrokeStarted,
+    onStrokeUpdated,
+    onStrokeEnded,
+    onCanvasCleared,
+    onError,
+  });
+
+  useEffect(() => {
+    callbacksRef.current = {
+      onRoomState,
+      onStrokeStarted,
+      onStrokeUpdated,
+      onStrokeEnded,
+      onCanvasCleared,
+      onError,
+    };
+  }, [onRoomState, onStrokeStarted, onStrokeUpdated, onStrokeEnded, onCanvasCleared, onError]);
+
+  // Initialize socket connection
+  useEffect(() => {
+    const newSocket = createSocket();
+
+    const handleConnect = () => {
+      setIsConnected(true);
+      hasJoinedRef.current = false; 
+    };
+
+    const handleDisconnect = () => {
+      setIsConnected(false);
+      hasJoinedRef.current = false;
+    };
+
+    const handleRoomState = (payload: RoomStatePayload) => {
+      setRoomState(payload);
+      callbacksRef.current.onRoomState?.(payload);
+    };
+
+    const handleStrokeStarted = (payload: StrokeStartedPayload) => {
+      callbacksRef.current.onStrokeStarted?.(payload);
+    };
+
+    const handleStrokeUpdated = (payload: StrokeUpdatedPayload) => {
+      callbacksRef.current.onStrokeUpdated?.(payload);
+    };
+
+    const handleStrokeEnded = (payload: StrokeEndedPayload) => {
+      callbacksRef.current.onStrokeEnded?.(payload);
+    };
+
+    const handleCanvasCleared = (payload: CanvasClearedPayload) => {
+      callbacksRef.current.onCanvasCleared?.(payload);
+    };
+
+    const handleError = (payload: ErrorPayload) => {
+      console.error("[Socket] Error:", payload);
+      callbacksRef.current.onError?.(payload);
+    };
+
+    // Register event listeners
+    newSocket.on("connect", handleConnect);
+    newSocket.on("disconnect", handleDisconnect);
+    newSocket.on("room:state", handleRoomState);
+    newSocket.on("stroke:started", handleStrokeStarted);
+    newSocket.on("stroke:updated", handleStrokeUpdated);
+    newSocket.on("stroke:ended", handleStrokeEnded);
+    newSocket.on("canvas:cleared", handleCanvasCleared);
+    newSocket.on("error", handleError);
+
+    socketRef.current = newSocket;
+    
+    // Update state asynchronously to avoid cascading renders
+    // Using setTimeout to defer state update until after render
+    setTimeout(() => {
+      setSocket(newSocket);
+    }, 0);
+
+    // Cleanup: remove all listeners and close socket
+    return () => {
+      newSocket.off("connect", handleConnect);
+      newSocket.off("disconnect", handleDisconnect);
+      newSocket.off("room:state", handleRoomState);
+      newSocket.off("stroke:started", handleStrokeStarted);
+      newSocket.off("stroke:updated", handleStrokeUpdated);
+      newSocket.off("stroke:ended", handleStrokeEnded);
+      newSocket.off("canvas:cleared", handleCanvasCleared);
+      newSocket.off("error", handleError);
+      newSocket.close();
+      socketRef.current = null;
+      setSocket(null);
+    };
+  }, []);
+
+  // Join room when socket is connected
+  const joinRoom = useCallback(
+    (targetRoomId: string, userId?: string, displayName?: string) => {
+      const socket = socketRef.current;
+      if (!socket || !isConnected || hasJoinedRef.current) return;
+
+      const finalUserId = userId || userIdRef.current;
+      const payload: JoinRoomPayload = {
+        roomId: targetRoomId,
+        userId: finalUserId,
+        displayName,
+      };
+
+      socket.emit("room:join", payload);
+      hasJoinedRef.current = true;
+    },
+    [isConnected]
+  );
+
+  const emitStrokeStart = useCallback(
+    (payload: Omit<StartStrokePayload, "roomId">) => {
+      const socket = socketRef.current;
+      if (!socket || !isConnected) return;
+
+      const fullPayload: StartStrokePayload = {
+        ...payload,
+        roomId,
+      };
+
+      socket.emit("stroke:start", fullPayload);
+    },
+    [isConnected, roomId]
+  );
+
+  const emitStrokeUpdate = useCallback(
+    (payload: Omit<UpdateStrokePayload, "roomId">) => {
+      const socket = socketRef.current;
+      if (!socket || !isConnected) return;
+
+      const fullPayload: UpdateStrokePayload = {
+        ...payload,
+        roomId,
+      };
+
+      socket.emit("stroke:update", fullPayload);
+    },
+    [isConnected, roomId]
+  );
+
+  const emitStrokeEnd = useCallback(
+    (payload: Omit<EndStrokePayload, "roomId">) => {
+      const socket = socketRef.current;
+      if (!socket || !isConnected) return;
+
+      const fullPayload: EndStrokePayload = {
+        ...payload,
+        roomId,
+      };
+
+      socket.emit("stroke:end", fullPayload);
+    },
+    [isConnected, roomId]
+  );
+
+  const emitClearCanvas = useCallback(
+    (userId?: string) => {
+      const socket = socketRef.current;
+      if (!socket || !isConnected) return;
+
+      const payload: ClearCanvasPayload = {
+        roomId,
+        userId,
+      };
+
+      socket.emit("canvas:clear", payload);
+    },
+    [isConnected, roomId]
+  );
+
+  // Auto-join when socket connects
+  useEffect(() => {
+    if (socket && isConnected && !hasJoinedRef.current) {
+      joinRoom(roomId);
+    }
+  }, [socket, isConnected, roomId, joinRoom]);
+
+  return {
+    socket,
+    isConnected,
+    roomState,
+    joinRoom,
+    emitStrokeStart,
+    emitStrokeUpdate,
+    emitStrokeEnd,
+    emitClearCanvas,
+  };
+}

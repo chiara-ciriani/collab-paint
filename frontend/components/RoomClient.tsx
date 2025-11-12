@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Canvas from "@/components/Canvas";
 import Toolbar from "@/components/Toolbar";
 import { useStrokesState } from "@/hooks/useStrokesState";
+import { useRoomSocket } from "@/hooks/useRoomSocket";
 import { DEFAULT_COLOR, DEFAULT_THICKNESS, generateUserId } from "@/lib/constants";
 import { copyToClipboard, getRoomUrl } from "@/lib/utils";
+import type { Stroke } from "@/types";
 
 interface RoomClientProps {
   roomId: string;
@@ -28,6 +30,38 @@ export default function RoomClient({ roomId }: RoomClientProps) {
   } = useStrokesState({
     userId,
   });
+
+  // Handle room state from server - initialize strokes
+  const handleRoomState = useCallback(
+    (state: { roomId: string; strokes: Stroke[]; users: Array<{ userId: string; displayName?: string }> }) => {
+      // TO DO: initialize the local strokes when receiving room state
+      console.log("[Room] Received room state:", {
+        roomId: state.roomId,
+        strokesCount: state.strokes.length,
+        usersCount: state.users.length,
+      });
+    },
+    []
+  );
+
+  const handleSocketError = useCallback((error: { message: string; code?: string }) => {
+    toast.error(`Error de conexión: ${error.message}`);
+  }, []);
+
+  // Socket connection
+  const { isConnected, roomState } = useRoomSocket({
+    roomId,
+    onRoomState: handleRoomState,
+    onError: handleSocketError,
+  });
+
+  // Sync strokes from server state when it arrives
+  useEffect(() => {
+    if (roomState && roomState.strokes.length > 0) {
+      // TODO: sync strokes from server
+      console.log("[Room] Room has", roomState.strokes.length, "strokes from server");
+    }
+  }, [roomState]);
 
   const handleStrokeStart = useCallback(
     (point: { x: number; y: number }) => {
@@ -73,7 +107,13 @@ export default function RoomClient({ roomId }: RoomClientProps) {
             </div>
             <div>
               <h1 className="text-lg font-bold text-gray-800">Sala: {roomId}</h1>
-              <p className="text-xs text-gray-500">Modo local</p>
+              <p className="text-xs text-gray-500">
+                {isConnected ? (
+                  <span className="text-green-600">● Conectado</span>
+                ) : (
+                  <span className="text-gray-400">● Conectando...</span>
+                )}
+              </p>
             </div>
           </div>
         </div>
