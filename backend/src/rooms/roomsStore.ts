@@ -88,6 +88,17 @@ class RoomsStore {
   }
 
   /**
+   * Delete all strokes from a specific user in a room
+   */
+  deleteUserStrokes(roomId: string, userId: string): void {
+    const room = this.getRoom(roomId);
+    if (!room) return;
+
+    room.strokes = room.strokes.filter((stroke) => stroke.userId !== userId);
+    this.updateLastActivity(roomId);
+  }
+
+  /**
    * Get all users in a room
    */
   getUsersInRoom(roomId: string): UserInRoom[] {

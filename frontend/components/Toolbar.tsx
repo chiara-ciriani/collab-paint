@@ -8,6 +8,7 @@ interface ToolbarProps {
   onColorChange: (color: string) => void;
   onThicknessChange: (thickness: number) => void;
   onClear: () => void;
+  onDeleteMyStrokes?: () => void;
 }
 
 export default function Toolbar({
@@ -16,6 +17,7 @@ export default function Toolbar({
   onColorChange,
   onThicknessChange,
   onClear,
+  onDeleteMyStrokes,
 }: ToolbarProps) {
 
   return (
@@ -80,13 +82,24 @@ export default function Toolbar({
           </span>
         </div>
 
-        <button
-          onClick={onClear}
-          className="ml-auto px-6 py-2 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-xl font-bold hover:from-red-600 hover:to-pink-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
-          aria-label="Limpiar el lienzo"
-        >
-          🗑️ Limpiar
-        </button>
+        <div className="ml-auto flex gap-3">
+          {onDeleteMyStrokes && (
+            <button
+              onClick={onDeleteMyStrokes}
+              className="px-6 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl font-bold hover:from-orange-600 hover:to-red-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+              aria-label="Borrar mis trazos"
+            >
+              🧹 Borrar mis trazos
+            </button>
+          )}
+          <button
+            onClick={onClear}
+            className="px-6 py-2 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-xl font-bold hover:from-red-600 hover:to-pink-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+            aria-label="Limpiar el lienzo"
+          >
+            🗑️ Limpiar todo
+          </button>
+        </div>
       </nav>
   );
 }

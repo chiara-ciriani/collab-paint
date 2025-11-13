@@ -8,6 +8,7 @@ import {
   validateEndStrokePayload,
   validateClearCanvasPayload,
   validateCursorMovePayload,
+  validateDeleteUserStrokesPayload,
 } from "./validators";
 import type {
   ErrorPayload,
@@ -19,6 +20,7 @@ import type {
   UserJoinedPayload,
   UserLeftPayload,
   CursorMovePayload,
+  UserStrokesDeletedPayload,
 } from "./serverToClientTypes";
 
 /**
@@ -242,6 +244,46 @@ export function handleConnection(socket: Socket): void {
       socket.to(roomId).emit("cursor:move", cursorMovePayload);
     } catch (error) {
       logger.error({ category: "Cursor", socketId: socket.id, err: error }, "Error handling cursor move");
+    }
+  });
+
+  // Handle delete user strokes
+  socket.on("strokes:delete:user", (payload: unknown) => {
+    const validation = validateDeleteUserStrokesPayload(payload);
+    if (!validation.valid) {
+      logger.warn({ category: "Strokes", socketId: socket.id, error: validation.error }, "Invalid delete user strokes payload");
+      emitError(socket, validation.error, "INVALID_PAYLOAD");
+      return;
+    }
+
+    try {
+      const { roomId, userId } = validation.data;
+
+      const room = roomsService.getRoomStateForClient(roomId);
+      if (!room) {
+        logger.warn({ category: "Strokes", roomId }, "Room not found for delete user strokes");
+        emitError(socket, "Room not found", "ROOM_NOT_FOUND");
+        return;
+      }
+
+      const success = roomsService.deleteUserStrokes(roomId, userId);
+      if (!success) {
+        logger.warn({ category: "Strokes", roomId, userId }, "Failed to delete user strokes");
+        emitError(socket, "Failed to delete strokes", "DELETE_ERROR");
+        return;
+      }
+
+      logger.info({ category: "Strokes", roomId, userId }, "User strokes deleted");
+
+      // Broadcast to all users in the room (including sender)
+      const userStrokesDeletedPayload: UserStrokesDeletedPayload = {
+        userId,
+      };
+      socket.to(roomId).emit("strokes:deleted:user", userStrokesDeletedPayload);
+      socket.emit("strokes:deleted:user", userStrokesDeletedPayload);
+    } catch (error) {
+      logger.error({ category: "Strokes", socketId: socket.id, err: error }, "Error deleting user strokes");
+      emitError(socket, "Failed to delete strokes", "DELETE_ERROR");
     }
   });
 

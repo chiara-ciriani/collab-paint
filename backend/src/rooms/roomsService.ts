@@ -104,6 +104,19 @@ export class RoomsService {
   getRoomStateForClient(roomId: string): RoomState | null {
     return roomsStore.getRoomState(roomId);
   }
+
+  /**
+   * Delete all strokes from a specific user in a room
+   */
+  deleteUserStrokes(roomId: string, userId: string): boolean {
+    const room = roomsStore.getRoom(roomId);
+    if (!room) {
+      return false;
+    }
+
+    roomsStore.deleteUserStrokes(roomId, userId);
+    return true;
+  }
 }
 
 export const roomsService = new RoomsService();

@@ -43,3 +43,8 @@ export interface CursorMovePayload {
   color?: string; // Current drawing color
 }
 
+export interface DeleteUserStrokesPayload {
+  roomId: string;
+  userId: string;
+}
+

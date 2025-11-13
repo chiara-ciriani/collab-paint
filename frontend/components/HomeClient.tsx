@@ -22,12 +22,18 @@ export default function HomeClient() {
   };
 
   const handleCreateRoom = () => {
+    if (nickname.trim()) {
+      localStorage.setItem(NICKNAME_STORAGE_KEY, nickname.trim());
+    }
     const newRoomId = generateRoomId();
     router.push(`/room/${newRoomId}`);
   };
 
   const handleJoinRoom = () => {
     if (roomId.trim()) {
+      if (nickname.trim()) {
+        localStorage.setItem(NICKNAME_STORAGE_KEY, nickname.trim());
+      }
       router.push(`/room/${roomId.trim()}`);
     }
   };

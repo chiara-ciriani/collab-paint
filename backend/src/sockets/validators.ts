@@ -9,6 +9,7 @@ import type {
   EndStrokePayload,
   ClearCanvasPayload,
   CursorMovePayload,
+  DeleteUserStrokesPayload,
 } from "./clientToServerTypes";
 
 const MAX_POINTS_PER_UPDATE = 100;
@@ -253,6 +254,28 @@ export function validateCursorMovePayload(payload: unknown): ValidationResult<Cu
       userId: p.userId!,
       position: p.position!,
       color: p.color,
+    })
+  );
+}
+
+/**
+ * Validate delete user strokes payload
+ */
+export function validateDeleteUserStrokesPayload(payload: unknown): ValidationResult<DeleteUserStrokesPayload> {
+  if (typeof payload !== "object" || payload === null) {
+    return { valid: false, error: "Payload must be an object" };
+  }
+
+  const p = payload as Partial<DeleteUserStrokesPayload>;
+
+  return validateFields(
+    [
+      { check: isValidRoomId(p.roomId), error: "Invalid roomId format" },
+      { check: isValidUserId(p.userId), error: "Invalid userId format" },
+    ],
+    () => ({
+      roomId: p.roomId!,
+      userId: p.userId!,
     })
   );
 }

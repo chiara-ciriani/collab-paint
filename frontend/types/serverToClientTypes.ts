@@ -57,3 +57,7 @@ export interface CursorMovePayload {
   color: string;
 }
 
+export interface UserStrokesDeletedPayload {
+  userId: string;
+}
+

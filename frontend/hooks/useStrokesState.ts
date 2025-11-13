@@ -20,12 +20,14 @@ interface UseStrokesStateReturn {
   updateStroke: (point: Point) => void;
   endStroke: () => void;
   clearStrokes: () => void;
+  deleteUserStrokes: (targetUserId: string) => void;
   // Server event handlers
   applyRoomState: (strokes: Stroke[]) => void;
   applyStrokeStarted: (payload: StrokeStartedPayload) => void;
   applyStrokeUpdated: (payload: StrokeUpdatedPayload) => void;
   applyStrokeEnded: (payload: StrokeEndedPayload) => void;
   applyCanvasCleared: () => void;
+  applyUserStrokesDeleted: (targetUserId: string) => void;
 }
 
 /**
@@ -126,6 +128,23 @@ export function useStrokesState({
     setCurrentStrokeId(null);
   }, []);
 
+  const deleteUserStrokes = useCallback((targetUserId: string) => {
+    setStrokes((prev) => {
+      const filtered = prev.filter((stroke) => stroke.userId !== targetUserId);
+      if (currentStrokeId) {
+        const currentStroke = prev.find((s) => s.id === currentStrokeId);
+        if (currentStroke && currentStroke.userId === targetUserId) {
+          setCurrentStrokeId(null);
+        }
+      }
+      return filtered;
+    });
+  }, [currentStrokeId]);
+
+  const applyUserStrokesDeleted = useCallback((targetUserId: string) => {
+    deleteUserStrokes(targetUserId);
+  }, [deleteUserStrokes]);
+
   return {
     strokes,
     currentStrokeId,
@@ -138,5 +157,7 @@ export function useStrokesState({
     applyStrokeUpdated,
     applyStrokeEnded,
     applyCanvasCleared,
+    deleteUserStrokes,
+    applyUserStrokesDeleted,
   };
 }

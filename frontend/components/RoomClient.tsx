@@ -26,7 +26,13 @@ export default function RoomClient({ roomId }: RoomClientProps) {
 
   const [displayName] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem(NICKNAME_STORAGE_KEY) || undefined;
+      const stored = localStorage.getItem(NICKNAME_STORAGE_KEY);
+      if (!stored) {
+        const randomNick = `Usuario${Math.floor(Math.random() * 10000)}`;
+        localStorage.setItem(NICKNAME_STORAGE_KEY, randomNick);
+        return randomNick;
+      }
+      return stored;
     }
     return undefined;
   });
@@ -42,11 +48,13 @@ export default function RoomClient({ roomId }: RoomClientProps) {
     updateStroke,
     endStroke,
     clearStrokes,
+    deleteUserStrokes,
     applyRoomState,
     applyStrokeStarted,
     applyStrokeUpdated,
     applyStrokeEnded,
     applyCanvasCleared,
+    applyUserStrokesDeleted,
   } = useStrokesState({
     userId,
   });
@@ -177,7 +185,16 @@ export default function RoomClient({ roomId }: RoomClientProps) {
   }, []);
 
   // Socket connection
-  const { isConnected, emitStrokeStart, emitStrokeUpdate, emitStrokeEnd, emitClearCanvas, emitCursorMove } = useRoomSocket({
+  const handleUserStrokesDeleted = useCallback(
+    (payload: { userId: string }) => {
+      applyUserStrokesDeleted(payload.userId);
+      activeDrawersRef.current.delete(payload.userId);
+      setActiveDrawers(new Set(activeDrawersRef.current));
+    },
+    [applyUserStrokesDeleted]
+  );
+
+  const { isConnected, emitStrokeStart, emitStrokeUpdate, emitStrokeEnd, emitClearCanvas, emitCursorMove, emitDeleteUserStrokes } = useRoomSocket({
     roomId,
     userId,
     displayName,
@@ -189,6 +206,7 @@ export default function RoomClient({ roomId }: RoomClientProps) {
     onUserJoined: handleUserJoined,
     onUserLeft: handleUserLeft,
     onCursorMove: handleCursorMove,
+    onUserStrokesDeleted: handleUserStrokesDeleted,
     onError: handleSocketError,
   });
 
@@ -222,6 +240,13 @@ export default function RoomClient({ roomId }: RoomClientProps) {
       emitClearCanvas(userId);
     }
   }, [clearStrokes, emitClearCanvas, userId]);
+
+  const handleDeleteMyStrokes = useCallback(() => {
+    deleteUserStrokes(userId);
+    emitDeleteUserStrokes(userId);
+    activeDrawersRef.current.delete(userId);
+    setActiveDrawers(new Set(activeDrawersRef.current));
+  }, [deleteUserStrokes, emitDeleteUserStrokes, userId]);
 
   const handleCopyLink = useCallback(async () => {
     const url = getRoomUrl(roomId);
@@ -274,13 +299,14 @@ export default function RoomClient({ roomId }: RoomClientProps) {
         </div>
       </header>
 
-      <Toolbar
-        currentColor={currentColor}
-        currentThickness={currentThickness}
-        onColorChange={setCurrentColor}
-        onThicknessChange={setCurrentThickness}
-        onClear={handleClear}
-      />
+       <Toolbar
+         currentColor={currentColor}
+         currentThickness={currentThickness}
+         onColorChange={setCurrentColor}
+         onThicknessChange={setCurrentThickness}
+         onClear={handleClear}
+         onDeleteMyStrokes={handleDeleteMyStrokes}
+       />
 
       <div className="flex-1 relative overflow-hidden bg-white">
         <div className="absolute inset-0 bg-gradient-to-br from-white via-purple-50/30 to-pink-50/30">

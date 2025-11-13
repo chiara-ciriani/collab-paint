@@ -10,6 +10,7 @@ import type {
   StrokeUpdatedPayload,
   StrokeEndedPayload,
   CanvasClearedPayload,
+  UserStrokesDeletedPayload,
   ErrorPayload,
 } from "@/types/serverToClientTypes";
 import type {
@@ -18,6 +19,7 @@ import type {
   UpdateStrokePayload,
   EndStrokePayload,
   ClearCanvasPayload,
+  DeleteUserStrokesPayload,
 } from "@/types/clientToServerTypes";
 
 import type {
@@ -42,6 +44,7 @@ interface UseRoomSocketOptions {
   onUserJoined?: (payload: UserJoinedPayload) => void;
   onUserLeft?: (payload: UserLeftPayload) => void;
   onCursorMove?: (payload: ServerCursorMovePayload) => void;
+  onUserStrokesDeleted?: (payload: UserStrokesDeletedPayload) => void;
   onError?: (error: ErrorPayload) => void;
 }
 
@@ -55,6 +58,7 @@ interface UseRoomSocketReturn {
   emitStrokeEnd: (payload: Omit<EndStrokePayload, "roomId">) => void;
   emitClearCanvas: (userId?: string) => void;
   emitCursorMove: (position: Point, color?: string) => void;
+  emitDeleteUserStrokes: (userId: string) => void;
 }
 
 /**
@@ -72,6 +76,7 @@ export function useRoomSocket({
   onUserJoined,
   onUserLeft,
   onCursorMove,
+  onUserStrokesDeleted,
   onError,
 }: UseRoomSocketOptions): UseRoomSocketReturn {
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -98,6 +103,7 @@ export function useRoomSocket({
     onUserJoined,
     onUserLeft,
     onCursorMove,
+    onUserStrokesDeleted,
     onError,
   });
 
@@ -111,9 +117,10 @@ export function useRoomSocket({
       onUserJoined,
       onUserLeft,
       onCursorMove,
+      onUserStrokesDeleted,
       onError,
     };
-  }, [onRoomState, onStrokeStarted, onStrokeUpdated, onStrokeEnded, onCanvasCleared, onUserJoined, onUserLeft, onCursorMove, onError]);
+  }, [onRoomState, onStrokeStarted, onStrokeUpdated, onStrokeEnded, onCanvasCleared, onUserJoined, onUserLeft, onCursorMove, onUserStrokesDeleted, onError]);
 
   // Initialize socket connection
   useEffect(() => {
@@ -178,6 +185,12 @@ export function useRoomSocket({
     newSocket.on("user:joined", handleUserJoined);
     newSocket.on("user:left", handleUserLeft);
     newSocket.on("cursor:move", handleCursorMove);
+    
+    const handleUserStrokesDeleted = (payload: UserStrokesDeletedPayload) => {
+      callbacksRef.current.onUserStrokesDeleted?.(payload);
+    };
+    newSocket.on("strokes:deleted:user", handleUserStrokesDeleted);
+    
     newSocket.on("error", handleError);
 
     socketRef.current = newSocket;
@@ -200,6 +213,7 @@ export function useRoomSocket({
       newSocket.off("user:joined", handleUserJoined);
       newSocket.off("user:left", handleUserLeft);
       newSocket.off("cursor:move", handleCursorMove);
+      newSocket.off("strokes:deleted:user", handleUserStrokesDeleted);
       newSocket.off("error", handleError);
       newSocket.close();
       socketRef.current = null;
@@ -303,6 +317,21 @@ export function useRoomSocket({
     [isConnected, roomId]
   );
 
+  const emitDeleteUserStrokes = useCallback(
+    (targetUserId: string) => {
+      const socket = socketRef.current;
+      if (!socket || !isConnected) return;
+
+      const payload: DeleteUserStrokesPayload = {
+        roomId,
+        userId: targetUserId,
+      };
+
+      socket.emit("strokes:delete:user", payload);
+    },
+    [isConnected, roomId]
+  );
+
   // Auto-join when socket connects
   useEffect(() => {
     if (socket && isConnected && !hasJoinedRef.current) {
@@ -320,5 +349,6 @@ export function useRoomSocket({
     emitStrokeEnd,
     emitClearCanvas,
     emitCursorMove,
+    emitDeleteUserStrokes,
   };
 }
