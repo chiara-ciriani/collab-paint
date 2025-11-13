@@ -108,7 +108,7 @@ export function handleConnection(socket: Socket): void {
 
       logger.info({ category: "Stroke", roomId, strokeId, userId }, "Stroke started");
 
-      const stroke = roomsService.startStroke(roomId, strokeId, userId, color, thickness, startPoint);
+      roomsService.startStroke(roomId, strokeId, userId, color, thickness, startPoint);
 
       // Broadcast to all users in the room (excluding sender)
       const strokeStartedPayload: StrokeStartedPayload = {

@@ -10,7 +10,10 @@ export class RoomsService {
    */
   joinRoom(roomId: string, user: UserInRoom): RoomState {
     roomsStore.addUser(roomId, user);
-    const room = roomsStore.getRoom(roomId)!;
+    const room = roomsStore.getRoom(roomId);
+    if (!room) {
+      throw new Error(`Room ${roomId} should exist after adding user`);
+    }
     return room;
   }
 

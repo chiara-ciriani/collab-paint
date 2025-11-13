@@ -28,6 +28,7 @@ function isValidString(value: unknown): value is string {
 
 /**
  * Helper to validate multiple fields and return first error or success
+ * After all validations pass, we can safely assert that the data is valid
  */
 function validateFields<T>(
   validations: Array<{ check: boolean; error: string }>,
@@ -38,6 +39,7 @@ function validateFields<T>(
       return { valid: false, error };
     }
   }
+  // All validations passed, safe to build data
   return { valid: true, data: buildData() };
 }
 
@@ -117,11 +119,13 @@ export function validateJoinRoomPayload(payload: unknown): ValidationResult<Join
         error: "displayName must be a string",
       },
     ],
-    () => ({
-      roomId: p.roomId!,
-      userId: p.userId!,
-      displayName: p.displayName,
-    })
+    () => {
+      return {
+        roomId: p.roomId!,
+        userId: p.userId!,
+        displayName: p.displayName,
+      };
+    }
   );
 }
 
@@ -144,14 +148,16 @@ export function validateStartStrokePayload(payload: unknown): ValidationResult<S
       { check: isValidThickness(p.thickness), error: "Invalid thickness (must be 1-50)" },
       { check: isValidPoint(p.startPoint), error: "Invalid startPoint coordinates" },
     ],
-    () => ({
-      roomId: p.roomId!,
-      strokeId: p.strokeId!,
-      userId: p.userId!,
-      color: p.color!,
-      thickness: p.thickness!,
-      startPoint: p.startPoint!,
-    })
+    () => {
+      return {
+        roomId: p.roomId!,
+        strokeId: p.strokeId!,
+        userId: p.userId!,
+        color: p.color!,
+        thickness: p.thickness!,
+        startPoint: p.startPoint!,
+      };
+    }
   );
 }
 
@@ -174,11 +180,13 @@ export function validateUpdateStrokePayload(payload: unknown): ValidationResult<
         error: `Invalid points array (must be 1-${MAX_POINTS_PER_UPDATE} valid points)`,
       },
     ],
-    () => ({
-      roomId: p.roomId!,
-      strokeId: p.strokeId!,
-      points: p.points!,
-    })
+    () => {
+      return {
+        roomId: p.roomId!,
+        strokeId: p.strokeId!,
+        points: p.points!,
+      };
+    }
   );
 }
 
@@ -197,10 +205,12 @@ export function validateEndStrokePayload(payload: unknown): ValidationResult<End
       { check: isValidRoomId(p.roomId), error: "Invalid roomId format" },
       { check: isValidString(p.strokeId), error: "Invalid strokeId" },
     ],
-    () => ({
-      roomId: p.roomId!,
-      strokeId: p.strokeId!,
-    })
+    () => {
+      return {
+        roomId: p.roomId!,
+        strokeId: p.strokeId!,
+      };
+    }
   );
 }
 
@@ -222,10 +232,12 @@ export function validateClearCanvasPayload(payload: unknown): ValidationResult<C
         error: "Invalid userId format",
       },
     ],
-    () => ({
-      roomId: p.roomId!,
-      userId: p.userId,
-    })
+    () => {
+      return {
+        roomId: p.roomId!,
+        userId: p.userId,
+      };
+    }
   );
 }
 
@@ -249,12 +261,14 @@ export function validateCursorMovePayload(payload: unknown): ValidationResult<Cu
         error: "Invalid color format",
       },
     ],
-    () => ({
-      roomId: p.roomId!,
-      userId: p.userId!,
-      position: p.position!,
-      color: p.color,
-    })
+    () => {
+      return {
+        roomId: p.roomId!,
+        userId: p.userId!,
+        position: p.position!,
+        color: p.color,
+      };
+    }
   );
 }
 
@@ -273,9 +287,11 @@ export function validateDeleteUserStrokesPayload(payload: unknown): ValidationRe
       { check: isValidRoomId(p.roomId), error: "Invalid roomId format" },
       { check: isValidUserId(p.userId), error: "Invalid userId format" },
     ],
-    () => ({
-      roomId: p.roomId!,
-      userId: p.userId!,
-    })
+    () => {
+      return {
+        roomId: p.roomId!,
+        userId: p.userId!,
+      };
+    }
   );
 }

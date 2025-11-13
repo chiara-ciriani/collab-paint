@@ -21,7 +21,11 @@ class RoomsStore {
         lastActivityAt: now,
       });
     }
-    return this.rooms.get(roomId)!;
+    const room = this.rooms.get(roomId);
+    if (!room) {
+      throw new Error(`Room ${roomId} should exist after getOrCreateRoom`);
+    }
+    return room;
   }
 
   /**
