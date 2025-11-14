@@ -10,10 +10,10 @@ import CursorIndicator from "@/components/CursorIndicator";
 import NicknameModal from "@/components/NicknameModal";
 import { useStrokesState } from "@/hooks/useStrokesState";
 import { useRoomSocket } from "@/hooks/useRoomSocket";
-import { DEFAULT_COLOR, DEFAULT_THICKNESS, generateUserId, NICKNAME_STORAGE_KEY } from "@/lib/constants";
+import { DEFAULT_COLOR, DEFAULT_THICKNESS, generateUserId, NICKNAME_STORAGE_KEY, shapeToPoints } from "@/lib/constants";
 import { config } from "@/lib/config";
 import { copyToClipboard, getRoomUrl } from "@/lib/utils";
-import type { Stroke, Point } from "@/types";
+import type { Stroke, Point, DrawingMode, ShapeType } from "@/types";
 
 interface RoomClientProps {
   roomId: string;
@@ -23,6 +23,8 @@ export default function RoomClient({ roomId }: RoomClientProps) {
   const router = useRouter();
   const [currentColor, setCurrentColor] = useState(DEFAULT_COLOR);
   const [currentThickness, setCurrentThickness] = useState(DEFAULT_THICKNESS);
+  const [drawingMode, setDrawingMode] = useState<DrawingMode>("freehand");
+  const [shapeType, setShapeType] = useState<ShapeType>("circle");
   const [userId] = useState(() => generateUserId());
 
   const [showNicknameModal, setShowNicknameModal] = useState(true);
@@ -334,8 +336,12 @@ export default function RoomClient({ roomId }: RoomClientProps) {
        <Toolbar
          currentColor={currentColor}
          currentThickness={currentThickness}
+         drawingMode={drawingMode}
+         shapeType={shapeType}
          onColorChange={setCurrentColor}
          onThicknessChange={setCurrentThickness}
+         onDrawingModeChange={setDrawingMode}
+         onShapeTypeChange={setShapeType}
          onClear={handleClear}
          onDeleteMyStrokes={handleDeleteMyStrokes}
        />
@@ -356,38 +362,85 @@ export default function RoomClient({ roomId }: RoomClientProps) {
             strokes={strokes}
             currentColor={currentColor}
             currentThickness={currentThickness}
+            drawingMode={drawingMode}
+            shapeType={shapeType}
             onStrokeStart={handleStrokeStart}
             onStrokeMove={(point) => {
-              updateStroke(point);
-              
-              // Emit cursor position when drawing
-              if (currentStrokeId) {
-                emitCursorMove(point, currentColor);
+              if (drawingMode === "freehand") {
+                updateStroke(point);
                 
-                // Emit to server if active stroke
-                emitStrokeUpdate({
-                  strokeId: currentStrokeId,
-                  points: [point],
-                });
+                if (currentStrokeId) {
+                  emitCursorMove(point, currentColor);
+                  emitStrokeUpdate({
+                    strokeId: currentStrokeId,
+                    points: [point],
+                  });
+                }
+              } else {
+                emitCursorMove(point, currentColor);
               }
             }}
-            onStrokeEnd={() => {
-              // Update local state
-              endStroke();
-              
-              activeDrawersRef.current.delete(userId);
-              setActiveDrawers(new Set(activeDrawersRef.current));
-              
-              setCursors((prev) => {
-                const next = new Map(prev);
-                next.delete(userId);
-                return next;
-              });
-              
-              // Emit to server if we have an active stroke
-              if (currentStrokeId) {
-                emitStrokeEnd({
-                  strokeId: currentStrokeId,
+            onStrokeEnd={(shapeData) => {
+              if (drawingMode === "freehand") {
+                endStroke();
+                
+                activeDrawersRef.current.delete(userId);
+                setActiveDrawers(new Set(activeDrawersRef.current));
+                
+                setCursors((prev) => {
+                  const next = new Map(prev);
+                  next.delete(userId);
+                  return next;
+                });
+                
+                if (currentStrokeId) {
+                  emitStrokeEnd({
+                    strokeId: currentStrokeId,
+                  });
+                }
+              } else if (shapeData) {
+                const shapePoints = shapeToPoints(
+                  shapeData.startPoint,
+                  shapeData.endPoint,
+                  shapeData.type
+                );
+
+                if (shapePoints.length > 0) {
+                  const strokeId = startStroke(shapePoints[0], currentColor, currentThickness);
+                  
+                  const remainingPoints = shapePoints.slice(1);
+                  for (let i = 0; i < remainingPoints.length; i++) {
+                    updateStroke(remainingPoints[i], strokeId);
+                  }
+
+                  emitStrokeStart({
+                    strokeId,
+                    userId,
+                    color: currentColor,
+                    thickness: currentThickness,
+                    startPoint: shapePoints[0],
+                  });
+
+                  if (remainingPoints.length > 0) {
+                    emitStrokeUpdate({
+                      strokeId,
+                      points: remainingPoints,
+                    });
+                  }
+
+                  endStroke();
+                  emitStrokeEnd({
+                    strokeId,
+                  });
+                }
+                
+                activeDrawersRef.current.delete(userId);
+                setActiveDrawers(new Set(activeDrawersRef.current));
+                
+                setCursors((prev) => {
+                  const next = new Map(prev);
+                  next.delete(userId);
+                  return next;
                 });
               }
             }}

@@ -1,12 +1,17 @@
 "use client";
 
-import { PRESET_COLORS, MIN_THICKNESS, MAX_THICKNESS } from "@/lib/constants";
+import { PRESET_COLORS, MIN_THICKNESS, MAX_THICKNESS, SHAPE_TYPES } from "@/lib/constants";
+import type { DrawingMode, ShapeType } from "@/types";
 
 interface ToolbarProps {
   currentColor: string;
   currentThickness: number;
+  drawingMode: DrawingMode;
+  shapeType?: ShapeType;
   onColorChange: (color: string) => void;
   onThicknessChange: (thickness: number) => void;
+  onDrawingModeChange: (mode: DrawingMode) => void;
+  onShapeTypeChange?: (shapeType: ShapeType) => void;
   onClear: () => void;
   onDeleteMyStrokes?: () => void;
 }
@@ -14,8 +19,12 @@ interface ToolbarProps {
 export default function Toolbar({
   currentColor,
   currentThickness,
+  drawingMode,
+  shapeType = "circle",
   onColorChange,
   onThicknessChange,
+  onDrawingModeChange,
+  onShapeTypeChange,
   onClear,
   onDeleteMyStrokes,
 }: ToolbarProps) {
@@ -59,6 +68,66 @@ export default function Toolbar({
             />
           </div>
         </div>
+
+        <div className="flex items-center gap-2 sm:gap-3 bg-gray-50 px-3 sm:px-4 py-2 rounded-xl border-2 border-gray-200 w-full sm:w-auto order-2">
+          <label className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap">
+            Modo:
+          </label>
+          <div className="flex gap-1.5 sm:gap-2">
+            <button
+              onClick={() => onDrawingModeChange("freehand")}
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                drawingMode === "freehand"
+                  ? "bg-purple-600 text-white shadow-md"
+                  : "bg-white text-gray-700 hover:bg-gray-100"
+              }`}
+              aria-label="Modo dibujo libre"
+              aria-pressed={drawingMode === "freehand"}
+            >
+              ✏️ Libre
+            </button>
+            <button
+              onClick={() => onDrawingModeChange("shape")}
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                drawingMode === "shape"
+                  ? "bg-purple-600 text-white shadow-md"
+                  : "bg-white text-gray-700 hover:bg-gray-100"
+              }`}
+              aria-label="Modo formas"
+              aria-pressed={drawingMode === "shape"}
+            >
+              ⬜ Formas
+            </button>
+          </div>
+        </div>
+
+        {drawingMode === "shape" && onShapeTypeChange && (
+          <div className="flex items-center gap-2 sm:gap-3 bg-gray-50 px-3 sm:px-4 py-2 rounded-xl border-2 border-gray-200 w-full sm:w-auto order-2">
+            <label className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap">
+              Forma:
+            </label>
+            <div className="flex gap-1.5 sm:gap-2">
+              {SHAPE_TYPES.map((type) => (
+                <button
+                  key={type}
+                  onClick={() => onShapeTypeChange(type)}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                    shapeType === type
+                      ? "bg-purple-600 text-white shadow-md"
+                      : "bg-white text-gray-700 hover:bg-gray-100"
+                  }`}
+                  aria-label={`Forma ${type}`}
+                  aria-pressed={shapeType === type}
+                >
+                  {type === "circle" && "⭕"}
+                  {type === "rectangle" && "⬜"}
+                  {type === "line" && "📏"}
+                  {type === "triangle" && "🔺"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center gap-2 sm:gap-3 bg-gray-50 px-3 sm:px-4 py-2 rounded-xl border-2 border-gray-200 w-full sm:w-auto order-2">
           <label htmlFor="thickness-slider" className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap">

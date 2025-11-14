@@ -17,7 +17,7 @@ interface UseStrokesStateReturn {
   strokes: Stroke[];
   currentStrokeId: string | null;
   startStroke: (point: Point, color: string, thickness: number) => string; // Returns strokeId
-  updateStroke: (point: Point) => void;
+  updateStroke: (point: Point, strokeId?: string) => void; // strokeId is optional, uses currentStrokeId if not provided
   endStroke: () => void;
   clearStrokes: () => void;
   deleteUserStrokes: (targetUserId: string) => void;
@@ -61,12 +61,13 @@ export function useStrokesState({
   );
 
   const updateStroke = useCallback(
-    (point: Point) => {
-      if (!currentStrokeId) return;
+    (point: Point, strokeId?: string) => {
+      const targetStrokeId = strokeId || currentStrokeId;
+      if (!targetStrokeId) return;
 
       setStrokes((prev) =>
         prev.map((stroke) =>
-          stroke.id === currentStrokeId
+          stroke.id === targetStrokeId
             ? { ...stroke, points: [...stroke.points, point] }
             : stroke
         )

@@ -34,7 +34,7 @@ export default function HomeClient() {
       <main className="relative z-10 flex flex-col items-center gap-6 sm:gap-10 p-4 sm:p-6 md:p-10 w-full max-w-lg">
         <div className="text-center space-y-2 sm:space-y-3">
           <div className="inline-block">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-2 drop-shadow-lg">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-2 drop-shadow-lg whitespace-nowrap">
               Collaborative Paint
             </h1>
             <div className="h-1 bg-white/30 rounded-full" />

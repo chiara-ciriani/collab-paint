@@ -1,21 +1,25 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback } from "react";
-import type { Point, Stroke } from "@/types";
+import type { Point, Stroke, DrawingMode, ShapeType } from "@/types";
 
 interface CanvasProps {
   strokes: Stroke[];
   currentColor: string;
   currentThickness: number;
+  drawingMode: DrawingMode;
+  shapeType?: ShapeType;
   onStrokeStart: (point: Point) => void;
   onStrokeMove: (point: Point) => void;
-  onStrokeEnd: () => void;
+  onStrokeEnd: (shapeData?: { startPoint: Point; endPoint: Point; type: ShapeType }) => void;
 }
 
 export default function Canvas({
   strokes,
   currentColor,
   currentThickness,
+  drawingMode,
+  shapeType = "circle",
   onStrokeStart,
   onStrokeMove,
   onStrokeEnd,
@@ -23,6 +27,8 @@ export default function Canvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentStroke, setCurrentStroke] = useState<Point[]>([]);
+  const [shapeStartPoint, setShapeStartPoint] = useState<Point | null>(null);
+  const [shapeEndPoint, setShapeEndPoint] = useState<Point | null>(null);
 
   const getCoordinates = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>): Point | null => {
@@ -50,6 +56,53 @@ export default function Canvas({
     []
   );
 
+  const drawShape = useCallback(
+    (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, start: Point, end: Point, type: ShapeType) => {
+      ctx.strokeStyle = currentColor;
+      ctx.lineWidth = currentThickness;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      const startX = start.x * canvas.width;
+      const startY = start.y * canvas.height;
+      const endX = end.x * canvas.width;
+      const endY = end.y * canvas.height;
+
+      ctx.beginPath();
+
+      switch (type) {
+        case "circle": {
+          const centerX = (startX + endX) / 2;
+          const centerY = (startY + endY) / 2;
+          const radiusX = Math.abs(endX - startX) / 2;
+          const radiusY = Math.abs(endY - startY) / 2;
+
+          ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+          break;
+        }
+        case "rectangle": {
+          const width = endX - startX;
+          const height = endY - startY;
+          ctx.rect(startX, startY, width, height);
+          break;
+        }
+        case "line":
+          ctx.moveTo(startX, startY);
+          ctx.lineTo(endX, endY);
+          break;
+        case "triangle":
+          ctx.moveTo(startX, startY);
+          ctx.lineTo(endX, startY);
+          ctx.lineTo(endX, endY);
+          ctx.closePath();
+          break;
+      }
+
+      ctx.stroke();
+    },
+    [currentColor, currentThickness]
+  );
+
   const drawStrokes = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -68,18 +121,24 @@ export default function Canvas({
       ctx.lineJoin = "round";
 
       ctx.beginPath();
-      const firstPoint = stroke.points[0];
-      ctx.moveTo(firstPoint.x * canvas.width, firstPoint.y * canvas.height);
+      if (stroke.points.length > 0) {
+        const firstPoint = stroke.points[0];
+        ctx.moveTo(firstPoint.x * canvas.width, firstPoint.y * canvas.height);
 
-      for (let i = 1; i < stroke.points.length; i++) {
-        const point = stroke.points[i];
-        ctx.lineTo(point.x * canvas.width, point.y * canvas.height);
+        for (let i = 1; i < stroke.points.length; i++) {
+          const point = stroke.points[i];
+          ctx.lineTo(point.x * canvas.width, point.y * canvas.height);
+        }
+        
+        if (stroke.points.length === 50) {
+          ctx.closePath();
+        }
       }
 
       ctx.stroke();
     });
 
-    if (currentStroke.length > 0) {
+    if (drawingMode === "freehand" && currentStroke.length > 0) {
       ctx.strokeStyle = currentColor;
       ctx.lineWidth = currentThickness;
       ctx.lineCap = "round";
@@ -96,7 +155,11 @@ export default function Canvas({
 
       ctx.stroke();
     }
-  }, [strokes, currentStroke, currentColor, currentThickness]);
+
+    if (drawingMode === "shape" && shapeStartPoint && shapeEndPoint) {
+      drawShape(ctx, canvas, shapeStartPoint, shapeEndPoint, shapeType);
+    }
+  }, [strokes, currentStroke, currentColor, currentThickness, drawingMode, shapeStartPoint, shapeEndPoint, shapeType, drawShape]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -130,10 +193,16 @@ export default function Canvas({
       if (!point) return;
 
       setIsDrawing(true);
-      setCurrentStroke([point]);
-      onStrokeStart(point);
+
+      if (drawingMode === "freehand") {
+        setCurrentStroke([point]);
+        onStrokeStart(point);
+      } else {
+        setShapeStartPoint(point);
+        setShapeEndPoint(point);
+      }
     },
-    [getCoordinates, onStrokeStart]
+    [getCoordinates, onStrokeStart, drawingMode]
   );
 
   const handleMove = useCallback(
@@ -144,19 +213,36 @@ export default function Canvas({
       const point = getCoordinates(e);
       if (!point) return;
 
-      setCurrentStroke((prev) => [...prev, point]);
-      onStrokeMove(point);
+      if (drawingMode === "freehand") {
+        setCurrentStroke((prev) => [...prev, point]);
+        onStrokeMove(point);
+      } else {
+        setShapeEndPoint(point);
+      }
     },
-    [isDrawing, getCoordinates, onStrokeMove]
+    [isDrawing, getCoordinates, onStrokeMove, drawingMode]
   );
 
   const handleEnd = useCallback(() => {
     if (!isDrawing) return;
 
     setIsDrawing(false);
-    setCurrentStroke([]);
-    onStrokeEnd();
-  }, [isDrawing, onStrokeEnd]);
+
+    if (drawingMode === "freehand") {
+      setCurrentStroke([]);
+      onStrokeEnd();
+    } else {
+      if (shapeStartPoint && shapeEndPoint) {
+        onStrokeEnd({
+          startPoint: shapeStartPoint,
+          endPoint: shapeEndPoint,
+          type: shapeType,
+        });
+      }
+      setShapeStartPoint(null);
+      setShapeEndPoint(null);
+    }
+  }, [isDrawing, onStrokeEnd, drawingMode, shapeStartPoint, shapeEndPoint, shapeType]);
 
   return (
     <canvas
