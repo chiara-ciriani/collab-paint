@@ -1,0 +1,26 @@
+{
+  "name": "autonoma",
+  "version": "1.0.0",
+  "description": "Aplicación web de dibujo colaborativo en tiempo real donde múltiples usuarios pueden dibujar en un lienzo compartido simultáneamente.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chiara-ciriani/collab-paint.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/chiara-ciriani/collab-paint/issues"
+  },
+  "homepage": "https://github.com/chiara-ciriani/collab-paint#readme",
+  "devDependencies": {
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
+    "husky": "^9.1.7"
+  }
+}

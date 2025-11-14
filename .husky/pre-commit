@@ -1,0 +1,43 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Get the root directory of the git repository
+GIT_ROOT=$(git rev-parse --show-toplevel)
+
+# Get list of staged files
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+
+echo "🔍 Running linters..."
+
+# Check if there are changes in frontend
+HAS_FRONTEND_CHANGES=$(echo "$STAGED_FILES" | grep -q "^frontend/" && echo "true" || echo "false")
+
+# Check if there are changes in backend
+HAS_BACKEND_CHANGES=$(echo "$STAGED_FILES" | grep -q "^backend/" && echo "true" || echo "false")
+
+# Run linter for frontend only if there are frontend changes
+if [ "$HAS_FRONTEND_CHANGES" = "true" ]; then
+  echo "📦 Linting frontend..."
+  cd "$GIT_ROOT/frontend" || exit 1
+  npm run lint || {
+    echo "❌ Frontend linting failed. Please fix the errors before committing."
+    exit 1
+  }
+fi
+
+# Run linter for backend only if there are backend changes
+if [ "$HAS_BACKEND_CHANGES" = "true" ]; then
+  echo "📦 Linting backend..."
+  cd "$GIT_ROOT/backend" || exit 1
+  npm run lint || {
+    echo "❌ Backend linting failed. Please fix the errors before committing."
+    exit 1
+  }
+fi
+
+# If no changes in either frontend or backend, skip linting
+if [ "$HAS_FRONTEND_CHANGES" = "false" ] && [ "$HAS_BACKEND_CHANGES" = "false" ]; then
+  echo "ℹ️  No changes in frontend or backend, skipping linting."
+fi
+
+echo "✅ All linters passed!"
