@@ -50,26 +50,26 @@ export default function HomeClient() {
         />
       </div>
 
-      <main className="relative z-10 flex flex-col items-center gap-10 p-10 w-full max-w-lg">
-        <div className="text-center space-y-3">
+      <main className="relative z-10 flex flex-col items-center gap-6 sm:gap-10 p-4 sm:p-6 md:p-10 w-full max-w-lg">
+        <div className="text-center space-y-2 sm:space-y-3">
           <div className="inline-block">
-            <h1 className="text-6xl font-extrabold text-white mb-2 drop-shadow-lg">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-2 drop-shadow-lg">
               Collaborative Paint
             </h1>
             <div className="h-1 bg-white/30 rounded-full" />
           </div>
-          <p className="text-xl text-white/90 font-medium drop-shadow-md">
+          <p className="text-base sm:text-lg md:text-xl text-white/90 font-medium drop-shadow-md px-4">
             Dibuja en tiempo real con otros usuarios
           </p>
         </div>
 
         <div className="w-full space-y-6">
-          <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-2xl border-2 border-white/50">
-            <div className="text-center mb-4">
-              <h2 className="text-xl font-bold text-gray-800 mb-2">
+          <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-2xl border-2 border-white/50">
+            <div className="text-center mb-3 sm:mb-4">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">
                 Elige tu nickname
               </h2>
-              <p className="text-gray-600 text-sm">
+              <p className="text-gray-600 text-xs sm:text-sm">
                 Este nombre se mostrará a otros usuarios
               </p>
             </div>
@@ -89,11 +89,11 @@ export default function HomeClient() {
             />
           </div>
 
-          <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-2xl border-2 border-white/50">
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full mb-4 shadow-lg">
+          <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 sm:p-6 md:p-8 shadow-2xl border-2 border-white/50">
+            <div className="text-center mb-4 sm:mb-6">
+              <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full mb-3 sm:mb-4 shadow-lg">
                 <svg
-                  className="w-8 h-8 text-white"
+                  className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -107,28 +107,28 @@ export default function HomeClient() {
                   />
                 </svg>
               </div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">
                 Crear nueva sala
               </h2>
-              <p className="text-gray-600 text-sm">
+              <p className="text-gray-600 text-xs sm:text-sm">
                 Inicia una sesión de dibujo colaborativo
               </p>
             </div>
             <button
               onClick={handleCreateRoom}
               disabled={!nickname.trim()}
-              className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold text-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold text-base sm:text-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               aria-label="Crear una nueva sala de dibujo"
             >
               ✨ Crear sala
             </button>
           </div>
 
-          <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-2xl border-2 border-white/50">
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full mb-4 shadow-lg">
+          <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 sm:p-6 md:p-8 shadow-2xl border-2 border-white/50">
+            <div className="text-center mb-4 sm:mb-6">
+              <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full mb-3 sm:mb-4 shadow-lg">
                 <svg
-                  className="w-8 h-8 text-white"
+                  className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -142,10 +142,10 @@ export default function HomeClient() {
                   />
                 </svg>
               </div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">
                 Unirse a una sala
               </h2>
-              <p className="text-gray-600 text-sm">
+              <p className="text-gray-600 text-xs sm:text-sm">
                 Ingresa el ID de la sala para unirte
               </p>
             </div>
@@ -166,7 +166,7 @@ export default function HomeClient() {
               <button
                 onClick={handleJoinRoom}
                 disabled={!roomId.trim()}
-                className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-bold text-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-bold text-base sm:text-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 aria-label="Unirse a la sala"
                 aria-disabled={!roomId.trim()}
               >

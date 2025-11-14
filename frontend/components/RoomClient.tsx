@@ -260,23 +260,23 @@ export default function RoomClient({ roomId }: RoomClientProps) {
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
-      <header className="flex items-center justify-between p-4 bg-white/80 backdrop-blur-sm border-b-2 border-purple-200/50 shadow-md">
-        <div className="flex items-center gap-4">
+      <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 p-3 sm:p-4 bg-white/80 backdrop-blur-sm border-b-2 border-purple-200/50 shadow-md">
+        <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
           <button
             onClick={() => router.push("/")}
-            className="px-4 py-2 text-purple-700 hover:bg-purple-100 rounded-xl transition-all font-medium hover:scale-105 active:scale-95"
+            className="px-3 sm:px-4 py-2 text-purple-700 hover:bg-purple-100 rounded-xl transition-all font-medium text-sm sm:text-base hover:scale-105 active:scale-95 whitespace-nowrap"
             aria-label="Volver a la página principal"
           >
-            ← Volver
+            ← <span className="hidden sm:inline">Volver</span>
           </button>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center shadow-md">
-              <span className="text-white font-bold text-lg" aria-hidden="true">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="text-white font-bold text-base sm:text-lg" aria-hidden="true">
                 🎨
               </span>
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-gray-800">Sala: {roomId}</h1>
+            <div className="min-w-0">
+              <h1 className="text-sm sm:text-lg font-bold text-gray-800 truncate">Sala: {roomId}</h1>
               <p className="text-xs text-gray-500">
                 {isConnected ? (
                   <span className="text-green-600">● Conectado</span>
@@ -287,14 +287,17 @@ export default function RoomClient({ roomId }: RoomClientProps) {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <UsersList users={users} currentUserId={userId} activeDrawers={activeDrawers} />
+        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          <div className="hidden sm:block">
+            <UsersList users={users} currentUserId={userId} activeDrawers={activeDrawers} />
+          </div>
           <button
             onClick={handleCopyLink}
-            className="px-5 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+            className="px-3 sm:px-5 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-semibold text-sm sm:text-base hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 whitespace-nowrap flex-shrink-0"
             aria-label="Copiar link de la sala"
           >
-            📋 Copiar link
+            <span className="hidden sm:inline">📋 Copiar link</span>
+            <span className="sm:hidden">📋</span>
           </button>
         </div>
       </header>
