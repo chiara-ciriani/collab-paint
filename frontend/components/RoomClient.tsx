@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import Canvas from "@/components/Canvas";
+import Canvas, { type CanvasHandle } from "@/components/Canvas";
 import Toolbar from "@/components/Toolbar";
 import UsersList from "@/components/UsersList";
 import CursorIndicator from "@/components/CursorIndicator";
@@ -26,6 +26,7 @@ export default function RoomClient({ roomId }: RoomClientProps) {
   const [drawingMode, setDrawingMode] = useState<DrawingMode>("freehand");
   const [shapeType, setShapeType] = useState<ShapeType>("circle");
   const [userId] = useState(() => generateUserId());
+  const canvasRef = useRef<CanvasHandle>(null);
 
   const [showNicknameModal, setShowNicknameModal] = useState(true);
   const [displayName, setDisplayName] = useState<string | undefined>(undefined);
@@ -256,6 +257,11 @@ export default function RoomClient({ roomId }: RoomClientProps) {
     setActiveDrawers(new Set(activeDrawersRef.current));
   }, [deleteUserStrokes, emitDeleteUserStrokes, userId]);
 
+  const handleExport = useCallback(() => {
+    canvasRef.current?.exportAsImage();
+    toast.success("¡Dibujo exportado!");
+  }, []);
+
   const handleCopyLink = useCallback(async () => {
     const url = getRoomUrl(roomId);
     const success = await copyToClipboard(url);
@@ -344,6 +350,7 @@ export default function RoomClient({ roomId }: RoomClientProps) {
          onShapeTypeChange={setShapeType}
          onClear={handleClear}
          onDeleteMyStrokes={handleDeleteMyStrokes}
+         onExport={handleExport}
        />
 
       <div className="flex-1 relative overflow-hidden bg-white">
@@ -359,6 +366,7 @@ export default function RoomClient({ roomId }: RoomClientProps) {
         </div>
         <div className="relative z-10 w-full h-full">
           <Canvas
+            ref={canvasRef}
             strokes={strokes}
             currentColor={currentColor}
             currentThickness={currentThickness}

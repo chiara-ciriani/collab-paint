@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, useImperativeHandle, forwardRef } from "react";
 import type { Point, Stroke, DrawingMode, ShapeType } from "@/types";
 
 interface CanvasProps {
@@ -14,16 +14,23 @@ interface CanvasProps {
   onStrokeEnd: (shapeData?: { startPoint: Point; endPoint: Point; type: ShapeType }) => void;
 }
 
-export default function Canvas({
-  strokes,
-  currentColor,
-  currentThickness,
-  drawingMode,
-  shapeType = "circle",
-  onStrokeStart,
-  onStrokeMove,
-  onStrokeEnd,
-}: CanvasProps) {
+export interface CanvasHandle {
+  exportAsImage: () => void;
+}
+
+const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
+  {
+    strokes,
+    currentColor,
+    currentThickness,
+    drawingMode,
+    shapeType = "circle",
+    onStrokeStart,
+    onStrokeMove,
+    onStrokeEnd,
+  },
+  ref
+) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentStroke, setCurrentStroke] = useState<Point[]>([]);
@@ -244,6 +251,20 @@ export default function Canvas({
     }
   }, [isDrawing, onStrokeEnd, drawingMode, shapeStartPoint, shapeEndPoint, shapeType]);
 
+  useImperativeHandle(ref, () => ({
+    exportAsImage: () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const link = document.createElement("a");
+      link.download = `collaborative-paint-${Date.now()}.png`;
+      link.href = canvas.toDataURL("image/png");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    },
+  }));
+
   return (
     <canvas
       ref={canvasRef}
@@ -258,5 +279,7 @@ export default function Canvas({
       style={{ display: "block" }}
     />
   );
-}
+});
+
+export default Canvas;
 

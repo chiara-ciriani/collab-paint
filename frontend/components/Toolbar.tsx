@@ -14,6 +14,7 @@ interface ToolbarProps {
   onShapeTypeChange?: (shapeType: ShapeType) => void;
   onClear: () => void;
   onDeleteMyStrokes?: () => void;
+  onExport?: () => void;
 }
 
 export default function Toolbar({
@@ -27,6 +28,7 @@ export default function Toolbar({
   onShapeTypeChange,
   onClear,
   onDeleteMyStrokes,
+  onExport,
 }: ToolbarProps) {
 
   return (
@@ -152,6 +154,15 @@ export default function Toolbar({
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto sm:ml-auto order-3">
+          {onExport && (
+            <button
+              onClick={onExport}
+              className="w-full sm:w-auto px-3 sm:px-4 md:px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-bold text-xs sm:text-sm md:text-base hover:from-green-600 hover:to-emerald-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 whitespace-nowrap"
+              aria-label="Exportar dibujo como imagen"
+            >
+              💾 Exportar
+            </button>
+          )}
           {onDeleteMyStrokes && (
             <button
               onClick={onDeleteMyStrokes}
