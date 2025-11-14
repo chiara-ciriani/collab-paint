@@ -7,6 +7,7 @@ import Canvas from "@/components/Canvas";
 import Toolbar from "@/components/Toolbar";
 import UsersList from "@/components/UsersList";
 import CursorIndicator from "@/components/CursorIndicator";
+import NicknameModal from "@/components/NicknameModal";
 import { useStrokesState } from "@/hooks/useStrokesState";
 import { useRoomSocket } from "@/hooks/useRoomSocket";
 import { DEFAULT_COLOR, DEFAULT_THICKNESS, generateUserId, NICKNAME_STORAGE_KEY } from "@/lib/constants";
@@ -24,18 +25,17 @@ export default function RoomClient({ roomId }: RoomClientProps) {
   const [currentThickness, setCurrentThickness] = useState(DEFAULT_THICKNESS);
   const [userId] = useState(() => generateUserId());
 
-  const [displayName] = useState(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(NICKNAME_STORAGE_KEY);
-      if (!stored) {
-        const randomNick = `Usuario${Math.floor(Math.random() * 10000)}`;
-        localStorage.setItem(NICKNAME_STORAGE_KEY, randomNick);
-        return randomNick;
-      }
-      return stored;
-    }
-    return undefined;
-  });
+  const [showNicknameModal, setShowNicknameModal] = useState(true);
+  const [displayName, setDisplayName] = useState<string | undefined>(undefined);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setTimeout(() => {
+      setIsClient(true);
+      setShowNicknameModal(true);
+      setDisplayName(undefined);
+    }, 0);
+  }, []);
   const [users, setUsers] = useState<Array<{ userId: string; displayName?: string }>>([]);
   const activeDrawersRef = useRef<Set<string>>(new Set());
   const [activeDrawers, setActiveDrawers] = useState<Set<string>>(new Set());
@@ -194,10 +194,10 @@ export default function RoomClient({ roomId }: RoomClientProps) {
     [applyUserStrokesDeleted]
   );
 
-  const { isConnected, emitStrokeStart, emitStrokeUpdate, emitStrokeEnd, emitClearCanvas, emitCursorMove, emitDeleteUserStrokes } = useRoomSocket({
+  const { isConnected, joinRoom, emitStrokeStart, emitStrokeUpdate, emitStrokeEnd, emitClearCanvas, emitCursorMove, emitDeleteUserStrokes } = useRoomSocket({
     roomId,
     userId,
-    displayName,
+    displayName: displayName || undefined,
     onRoomState: handleRoomState,
     onStrokeStarted: handleStrokeStarted,
     onStrokeUpdated: handleStrokeUpdated,
@@ -209,6 +209,12 @@ export default function RoomClient({ roomId }: RoomClientProps) {
     onUserStrokesDeleted: handleUserStrokesDeleted,
     onError: handleSocketError,
   });
+
+  useEffect(() => {
+    if (displayName && isConnected) {
+      joinRoom(roomId, userId, displayName);
+    }
+  }, [displayName, isConnected, roomId, userId, joinRoom]);
 
   const handleStrokeStart = useCallback(
     (point: { x: number; y: number }) => {
@@ -257,6 +263,29 @@ export default function RoomClient({ roomId }: RoomClientProps) {
       toast.error("Error al copiar el link. Por favor, cópialo manualmente.");
     }
   }, [roomId]);
+
+  const handleNicknameConfirm = useCallback((nickname: string) => {
+    const trimmedNickname = nickname.trim();
+    if (trimmedNickname) {
+      localStorage.setItem(NICKNAME_STORAGE_KEY, trimmedNickname);
+      setDisplayName(trimmedNickname);
+      setShowNicknameModal(false);
+    }
+  }, []);
+
+  if (!isClient) {
+    return null;
+  }
+
+  if (showNicknameModal || !displayName) {
+    return (
+      <NicknameModal
+        initialNickname={displayName || ""}
+        onConfirm={handleNicknameConfirm}
+        roomId={roomId}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">

@@ -2,38 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { generateRoomId, NICKNAME_STORAGE_KEY } from "@/lib/constants";
-
-// Generate a random nickname
-function generateRandomNickname(): string {
-  return `Usuario${Math.floor(Math.random() * 10000)}`;
-}
+import { generateRoomId } from "@/lib/constants";
 
 export default function HomeClient() {
   const [roomId, setRoomId] = useState("");
-  const [nickname, setNickname] = useState(() => generateRandomNickname());
   const router = useRouter();
 
-  const handleNicknameChange = (value: string) => {
-    setNickname(value);
-    if (value.trim()) {
-      localStorage.setItem(NICKNAME_STORAGE_KEY, value.trim());
-    }
-  };
-
   const handleCreateRoom = () => {
-    if (nickname.trim()) {
-      localStorage.setItem(NICKNAME_STORAGE_KEY, nickname.trim());
-    }
     const newRoomId = generateRoomId();
     router.push(`/room/${newRoomId}`);
   };
 
   const handleJoinRoom = () => {
     if (roomId.trim()) {
-      if (nickname.trim()) {
-        localStorage.setItem(NICKNAME_STORAGE_KEY, nickname.trim());
-      }
       router.push(`/room/${roomId.trim()}`);
     }
   };
@@ -64,31 +45,6 @@ export default function HomeClient() {
         </div>
 
         <div className="w-full space-y-6">
-          <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-2xl border-2 border-white/50">
-            <div className="text-center mb-3 sm:mb-4">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">
-                Elige tu nickname
-              </h2>
-              <p className="text-gray-600 text-xs sm:text-sm">
-                Este nombre se mostrará a otros usuarios
-              </p>
-            </div>
-            <input
-              type="text"
-              value={nickname}
-              onChange={(e) => handleNicknameChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && nickname.trim()) {
-                  handleCreateRoom();
-                }
-              }}
-              placeholder="MiNickName9172"
-              maxLength={20}
-              className="w-full px-5 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all text-gray-800 placeholder-gray-400 font-medium text-center"
-              aria-label="Nickname o nombre de usuario"
-            />
-          </div>
-
           <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 sm:p-6 md:p-8 shadow-2xl border-2 border-white/50">
             <div className="text-center mb-4 sm:mb-6">
               <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full mb-3 sm:mb-4 shadow-lg">
@@ -116,8 +72,7 @@ export default function HomeClient() {
             </div>
             <button
               onClick={handleCreateRoom}
-              disabled={!nickname.trim()}
-              className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold text-base sm:text-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold text-base sm:text-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
               aria-label="Crear una nueva sala de dibujo"
             >
               ✨ Crear sala

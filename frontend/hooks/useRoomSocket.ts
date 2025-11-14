@@ -225,7 +225,9 @@ export function useRoomSocket({
   const joinRoom = useCallback(
     (targetRoomId: string, userId?: string, displayName?: string) => {
       const socket = socketRef.current;
-      if (!socket || !isConnected || hasJoinedRef.current) return;
+      if (!socket || !isConnected) return;
+      
+      if (hasJoinedRef.current && !displayName) return;
 
       const finalUserId = userId || userIdRef.current;
       const payload: JoinRoomPayload = {
@@ -332,12 +334,11 @@ export function useRoomSocket({
     [isConnected, roomId]
   );
 
-  // Auto-join when socket connects
   useEffect(() => {
-    if (socket && isConnected && !hasJoinedRef.current) {
+    if (socket && isConnected && !hasJoinedRef.current && displayNameRef.current) {
       joinRoom(roomId, userIdRef.current, displayNameRef.current);
     }
-  }, [socket, isConnected, roomId, joinRoom]);
+  }, [socket, isConnected, roomId, joinRoom, displayName]);
 
   return {
     socket,
