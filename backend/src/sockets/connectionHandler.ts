@@ -1,6 +1,7 @@
 import type { Socket } from "socket.io";
 import { roomsService } from "../rooms/roomsService";
 import { logger } from "../logger";
+import { checkRateLimit, cleanupSocketRateLimit } from "../middleware/rateLimiter";
 import {
   validateJoinRoomPayload,
   validateStartStrokePayload,
@@ -96,6 +97,12 @@ export function handleConnection(socket: Socket): void {
 
   // Handle stroke start
   socket.on("stroke:start", (payload: unknown) => {
+    // Rate limiting check
+    if (!checkRateLimit(socket, "stroke:start")) {
+      emitError(socket, "Rate limit exceeded for stroke:start", "RATE_LIMIT_EXCEEDED");
+      return;
+    }
+
     const validation = validateStartStrokePayload(payload);
     if (!validation.valid) {
       logger.warn({ category: "Stroke", socketId: socket.id, error: validation.error }, "Invalid start payload");
@@ -127,6 +134,12 @@ export function handleConnection(socket: Socket): void {
 
   // Handle stroke update
   socket.on("stroke:update", (payload: unknown) => {
+    // Rate limiting check
+    if (!checkRateLimit(socket, "stroke:update")) {
+      emitError(socket, "Rate limit exceeded for stroke:update", "RATE_LIMIT_EXCEEDED");
+      return;
+    }
+
     const validation = validateUpdateStrokePayload(payload);
     if (!validation.valid) {
       logger.warn({ category: "Stroke", socketId: socket.id, error: validation.error }, "Invalid update payload");
@@ -158,6 +171,12 @@ export function handleConnection(socket: Socket): void {
 
   // Handle stroke end
   socket.on("stroke:end", (payload: unknown) => {
+    // Rate limiting check
+    if (!checkRateLimit(socket, "stroke:end")) {
+      emitError(socket, "Rate limit exceeded for stroke:end", "RATE_LIMIT_EXCEEDED");
+      return;
+    }
+
     const validation = validateEndStrokePayload(payload);
     if (!validation.valid) {
       logger.warn({ category: "Stroke", socketId: socket.id, error: validation.error }, "Invalid end payload");
@@ -183,6 +202,12 @@ export function handleConnection(socket: Socket): void {
 
   // Handle canvas clear
   socket.on("canvas:clear", (payload: unknown) => {
+    // Rate limiting check
+    if (!checkRateLimit(socket, "canvas:clear")) {
+      emitError(socket, "Rate limit exceeded for canvas:clear", "RATE_LIMIT_EXCEEDED");
+      return;
+    }
+
     const validation = validateClearCanvasPayload(payload);
     if (!validation.valid) {
       logger.warn({ category: "Canvas", socketId: socket.id, error: validation.error }, "Invalid clear payload");
@@ -216,9 +241,15 @@ export function handleConnection(socket: Socket): void {
 
   // Handle cursor move
   socket.on("cursor:move", (payload: unknown) => {
+    // Rate limiting check (silently drop if exceeded, don't emit error)
+    if (!checkRateLimit(socket, "cursor:move")) {
+      return;
+    }
+
     const validation = validateCursorMovePayload(payload);
     if (!validation.valid) {
       logger.warn({ category: "Cursor", socketId: socket.id, error: validation.error }, "Invalid cursor move payload");
+      emitError(socket, validation.error, "INVALID_PAYLOAD");
       return;
     }
 
@@ -249,6 +280,12 @@ export function handleConnection(socket: Socket): void {
 
   // Handle delete user strokes
   socket.on("strokes:delete:user", (payload: unknown) => {
+    // Rate limiting check
+    if (!checkRateLimit(socket, "strokes:delete:user")) {
+      emitError(socket, "Rate limit exceeded for strokes:delete:user", "RATE_LIMIT_EXCEEDED");
+      return;
+    }
+
     const validation = validateDeleteUserStrokesPayload(payload);
     if (!validation.valid) {
       logger.warn({ category: "Strokes", socketId: socket.id, error: validation.error }, "Invalid delete user strokes payload");
@@ -290,6 +327,9 @@ export function handleConnection(socket: Socket): void {
   // Handle disconnect
   socket.on("disconnect", (reason: string) => {
     logger.info({ category: "Socket", socketId: socket.id, reason }, "Client disconnected");
+    
+    // Clean up rate limit data
+    cleanupSocketRateLimit(socket.id);
 
     // Remove user from room if they were in one
     const roomId = socket.data.roomId as string | undefined;
