@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback, useImperativeHandle, forwardRef } from "react";
 import type { Point, Stroke, DrawingMode, ShapeType } from "@/types";
+import { drawSmoothPath } from "@/lib/smoothPath";
 
 interface CanvasProps {
   strokes: Stroke[];
@@ -131,16 +132,29 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
 
         ctx.beginPath();
         if (stroke.points.length > 0) {
-          const firstPoint = stroke.points[0];
-          ctx.moveTo(firstPoint.x * canvas.width, firstPoint.y * canvas.height);
-
-          for (let i = 1; i < stroke.points.length; i++) {
-            const point = stroke.points[i];
-            ctx.lineTo(point.x * canvas.width, point.y * canvas.height);
-          }
+          // Only apply smoothing to freehand strokes (not shapes)
+          // Shapes have specific point counts: rectangle=5, triangle=4, line=2, circle=50
+          const isShape = stroke.points.length === 2 || // line
+                         stroke.points.length === 4 || // triangle
+                         stroke.points.length === 5 || // rectangle
+                         stroke.points.length === 50; // circle
           
-          if (stroke.points.length === 50) {
-            ctx.closePath();
+          if (isShape) {
+            // Draw shapes without smoothing (they already have correct geometry)
+            const firstPoint = stroke.points[0];
+            ctx.moveTo(firstPoint.x * canvas.width, firstPoint.y * canvas.height);
+
+            for (let i = 1; i < stroke.points.length; i++) {
+              const point = stroke.points[i];
+              ctx.lineTo(point.x * canvas.width, point.y * canvas.height);
+            }
+            
+            if (stroke.points.length === 50) {
+              ctx.closePath();
+            }
+          } else {
+            // Use smooth path drawing for freehand strokes
+            drawSmoothPath(ctx, stroke.points, canvas.width, canvas.height);
           }
         }
 
@@ -154,14 +168,8 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
         ctx.lineJoin = "round";
 
         ctx.beginPath();
-        const firstPoint = currentStroke[0];
-        ctx.moveTo(firstPoint.x * canvas.width, firstPoint.y * canvas.height);
-
-        for (let i = 1; i < currentStroke.length; i++) {
-          const point = currentStroke[i];
-          ctx.lineTo(point.x * canvas.width, point.y * canvas.height);
-        }
-
+        // Use smooth path drawing for better visual quality
+        drawSmoothPath(ctx, currentStroke, canvas.width, canvas.height);
         ctx.stroke();
       }
 
