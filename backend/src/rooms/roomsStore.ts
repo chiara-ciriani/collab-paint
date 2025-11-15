@@ -4,7 +4,7 @@ import type { RoomState, Stroke, UserInRoom, Point } from "./types";
  * In-memory store for rooms
  * In production, this would be replaced with Redis or a database
  */
-class RoomsStore {
+export class RoomsStore {
   private rooms: Map<string, RoomState> = new Map();
 
   /**
