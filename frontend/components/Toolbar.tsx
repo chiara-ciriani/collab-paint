@@ -33,10 +33,10 @@ export default function Toolbar({
 
   return (
       <nav
-        className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 md:gap-6 p-3 sm:p-4 bg-white/90 backdrop-blur-sm border-b-2 border-purple-200/50 shadow-md"
+        className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 md:gap-6 p-3 sm:p-4 bg-white/90 backdrop-blur-sm border-b-2 border-purple-200/50 shadow-md overflow-x-auto sm:overflow-x-visible"
         aria-label="Herramientas de dibujo"
       >
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap w-full sm:w-auto order-1">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap w-full sm:w-auto order-1 flex-shrink-0">
           <label htmlFor="color-presets" className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap">
             Color:
           </label>
@@ -71,7 +71,7 @@ export default function Toolbar({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 bg-gray-50 px-3 sm:px-4 py-2 rounded-xl border-2 border-gray-200 w-full sm:w-auto order-2">
+        <div className="flex items-center gap-2 sm:gap-3 bg-gray-50 px-3 sm:px-4 py-2 rounded-xl border-2 border-gray-200 w-full sm:w-auto order-2 flex-shrink-0">
           <label className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap">
             Modo:
           </label>
@@ -104,7 +104,7 @@ export default function Toolbar({
         </div>
 
         {drawingMode === "shape" && onShapeTypeChange && (
-          <div className="flex items-center gap-2 sm:gap-3 bg-gray-50 px-3 sm:px-4 py-2 rounded-xl border-2 border-gray-200 w-full sm:w-auto order-2">
+          <div className="flex items-center gap-2 sm:gap-3 bg-gray-50 px-3 sm:px-4 py-2 rounded-xl border-2 border-gray-200 w-full sm:w-auto order-2 flex-shrink-0">
             <label className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap">
               Forma:
             </label>
@@ -131,7 +131,7 @@ export default function Toolbar({
           </div>
         )}
 
-        <div className="flex items-center gap-2 sm:gap-3 bg-gray-50 px-3 sm:px-4 py-2 rounded-xl border-2 border-gray-200 w-full sm:w-auto order-2">
+        <div className="flex items-center gap-2 sm:gap-3 bg-gray-50 px-3 sm:px-4 py-2 rounded-xl border-2 border-gray-200 w-full sm:w-auto order-2 flex-shrink-0">
           <label htmlFor="thickness-slider" className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap">
             Grosor:
           </label>
@@ -153,7 +153,7 @@ export default function Toolbar({
           </span>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto sm:ml-auto order-3">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto sm:ml-auto order-3 flex-shrink-0">
           {onExport && (
             <button
               onClick={onExport}

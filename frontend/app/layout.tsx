@@ -19,6 +19,12 @@ export const metadata: Metadata = {
     template: "%s | Collaborative Paint",
   },
   description: "Aplicación web de dibujo colaborativo en tiempo real",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
 };
 
 export default function RootLayout({
