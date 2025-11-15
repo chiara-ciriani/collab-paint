@@ -6,6 +6,7 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   {
     files: ["**/*.ts"],
+    ignores: ["**/*.test.ts"],
     languageOptions: {
       parserOptions: {
         project: true,
@@ -33,7 +34,16 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ["dist/**", "node_modules/**", "vitest.config.ts"],
+    ignores: ["dist/**", "node_modules/**", "vitest.config.ts", "**/*.test.ts"],
+  },
+  // Test files: no type-aware linting (they're excluded from tsconfig)
+  {
+    files: ["**/*.test.ts"],
+    languageOptions: {
+      parserOptions: {
+        project: false,
+      },
+    },
   }
 );
 

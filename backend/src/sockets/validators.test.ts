@@ -64,7 +64,9 @@ describe("validators", () => {
     it("should reject non-object payload", () => {
       const result = validateJoinRoomPayload(null);
       expect(result.valid).toBe(false);
-      expect(result.error).toContain("object");
+      if (!result.valid) {
+        expect(result.error).toContain("object");
+      }
     });
   });
 
