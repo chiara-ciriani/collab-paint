@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useStrokesState } from "./useStrokesState";
-import type { Stroke } from "@/types";
+import type { Stroke } from "../types";
 
 describe("useStrokesState", () => {
   const userId = "test-user";
@@ -258,7 +258,7 @@ describe("useStrokesState", () => {
     it("should clear currentStrokeId if it matches", () => {
       const { result } = renderHook(() => useStrokesState({ userId }));
 
-      let strokeId: string;
+      let strokeId!: string;
 
       act(() => {
         strokeId = result.current.startStroke(
@@ -278,7 +278,7 @@ describe("useStrokesState", () => {
     it("should not clear currentStrokeId if it doesn't match", () => {
       const { result } = renderHook(() => useStrokesState({ userId }));
 
-      let strokeId: string;
+      let strokeId!: string;
 
       act(() => {
         strokeId = result.current.startStroke(
