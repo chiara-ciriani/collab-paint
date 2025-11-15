@@ -86,13 +86,15 @@ export function useRoomSocket({
   const userIdRef = useRef<string>(providedUserId || generateUserId());
   const displayNameRef = useRef<string | undefined>(displayName);
   const hasJoinedRef = useRef(false);
+  const roomIdRef = useRef<string>(roomId);
   
   useEffect(() => {
     if (providedUserId) {
       userIdRef.current = providedUserId;
     }
     displayNameRef.current = displayName;
-  }, [providedUserId, displayName]);
+    roomIdRef.current = roomId;
+  }, [providedUserId, displayName, roomId]);
 
   const callbacksRef = useRef({
     onRoomState,
@@ -128,12 +130,27 @@ export function useRoomSocket({
 
     const handleConnect = () => {
       setIsConnected(true);
-      hasJoinedRef.current = false; 
+      // Auto-rejoin room on reconnection
+      if (displayNameRef.current) {
+        setTimeout(() => {
+          const payload: JoinRoomPayload = {
+            roomId: roomIdRef.current,
+            userId: userIdRef.current,
+            displayName: displayNameRef.current,
+          };
+          newSocket.emit("room:join", payload);
+          hasJoinedRef.current = true;
+        }, 100);
+      }
     };
 
-    const handleDisconnect = () => {
+    const handleDisconnect = (reason: string) => {
       setIsConnected(false);
-      hasJoinedRef.current = false;
+      // Don't reset hasJoinedRef on disconnect - rejoin occurs on reconnect
+      if (reason === "io server disconnect") {
+        // Server disconnected, need to manually reconnect
+        hasJoinedRef.current = false;
+      }
     };
 
     const handleRoomState = (payload: RoomStatePayload) => {

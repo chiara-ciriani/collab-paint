@@ -13,6 +13,7 @@ import { useRoomSocket } from "@/hooks/useRoomSocket";
 import { DEFAULT_COLOR, DEFAULT_THICKNESS, generateUserId, NICKNAME_STORAGE_KEY, shapeToPoints } from "@/lib/constants";
 import { config } from "@/lib/config";
 import { copyToClipboard, getRoomUrl } from "@/lib/utils";
+import { throttle } from "@/lib/throttle";
 import type { Stroke, Point, DrawingMode, ShapeType } from "@/types";
 
 interface RoomClientProps {
@@ -27,6 +28,10 @@ export default function RoomClient({ roomId }: RoomClientProps) {
   const [shapeType, setShapeType] = useState<ShapeType>("circle");
   const [userId] = useState(() => generateUserId());
   const canvasRef = useRef<CanvasHandle>(null);
+  
+  // Batching for stroke updates - accumulate points and send in batches
+  const pendingPointsRef = useRef<Map<string, Point[]>>(new Map());
+  const batchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [showNicknameModal, setShowNicknameModal] = useState(true);
   const [displayName, setDisplayName] = useState<string | undefined>(undefined);
@@ -80,16 +85,58 @@ export default function RoomClient({ roomId }: RoomClientProps) {
       // Only apply if it's from another user
       if (payload.userId !== userId) {
         applyStrokeStarted(payload);
+        
+        const user = users.find((u) => u.userId === payload.userId);
+        setCursors((prev) => {
+          const next = new Map(prev);
+          next.set(payload.userId, {
+            position: payload.startPoint,
+            displayName: user?.displayName,
+            color: payload.color,
+          });
+          return next;
+        });
+        
+        const existingTimeout = cursorTimeoutsRef.current.get(payload.userId);
+        if (existingTimeout) {
+          clearTimeout(existingTimeout);
+          cursorTimeoutsRef.current.delete(payload.userId);
+        }
       }
     },
-    [userId, applyStrokeStarted]
+    [userId, applyStrokeStarted, users]
   );
 
   const handleStrokeUpdated = useCallback(
     (payload: { strokeId: string; points: { x: number; y: number }[] }) => {
       applyStrokeUpdated(payload);
+      
+      if (payload.points.length > 0) {
+        const lastPoint = payload.points[payload.points.length - 1];
+        const stroke = strokes.find((s) => s.id === payload.strokeId);
+        
+        if (stroke && stroke.userId !== userId) {
+          const user = users.find((u) => u.userId === stroke.userId);
+          setCursors((prev) => {
+            const next = new Map(prev);
+            const existing = next.get(stroke.userId);
+            next.set(stroke.userId, {
+              position: lastPoint,
+              displayName: user?.displayName || existing?.displayName,
+              color: stroke.color,
+            });
+            return next;
+          });
+          
+          const existingTimeout = cursorTimeoutsRef.current.get(stroke.userId);
+          if (existingTimeout) {
+            clearTimeout(existingTimeout);
+            cursorTimeoutsRef.current.delete(stroke.userId);
+          }
+        }
+      }
     },
-    [applyStrokeUpdated]
+    [applyStrokeUpdated, strokes, userId, users]
   );
 
   const handleStrokeEnded = useCallback(
@@ -100,9 +147,27 @@ export default function RoomClient({ roomId }: RoomClientProps) {
       if (stroke) {
         activeDrawersRef.current.delete(stroke.userId);
         setActiveDrawers(new Set(activeDrawersRef.current));
+        
+        if (stroke.userId !== userId) {
+          const existingTimeout = cursorTimeoutsRef.current.get(stroke.userId);
+          if (existingTimeout) {
+            clearTimeout(existingTimeout);
+          }
+          
+          const timeout = setTimeout(() => {
+            setCursors((prev) => {
+              const next = new Map(prev);
+              next.delete(stroke.userId);
+              return next;
+            });
+            cursorTimeoutsRef.current.delete(stroke.userId);
+          }, config.cursorTimeoutMs);
+          
+          cursorTimeoutsRef.current.set(stroke.userId, timeout);
+        }
       }
     },
-    [applyStrokeEnded, strokes]
+    [applyStrokeEnded, strokes, userId]
   );
 
   const handleCanvasCleared = useCallback(() => {
@@ -158,17 +223,20 @@ export default function RoomClient({ roomId }: RoomClientProps) {
           return next;
         });
 
-        // Set timeout to remove cursor after inactivity
-        const timeout = setTimeout(() => {
-          setCursors((prev) => {
-            const next = new Map(prev);
-            next.delete(payload.userId);
-            return next;
-          });
-          cursorTimeoutsRef.current.delete(payload.userId);
-        }, config.cursorTimeoutMs);
+        const isDrawing = activeDrawersRef.current.has(payload.userId);
+        
+        if (!isDrawing) {
+          const timeout = setTimeout(() => {
+            setCursors((prev) => {
+              const next = new Map(prev);
+              next.delete(payload.userId);
+              return next;
+            });
+            cursorTimeoutsRef.current.delete(payload.userId);
+          }, config.cursorTimeoutMs);
 
-        cursorTimeoutsRef.current.set(payload.userId, timeout);
+          cursorTimeoutsRef.current.set(payload.userId, timeout);
+        }
       }
     },
     [userId]
@@ -226,6 +294,8 @@ export default function RoomClient({ roomId }: RoomClientProps) {
       activeDrawersRef.current.add(userId);
       setActiveDrawers(new Set(activeDrawersRef.current));
       
+      pendingPointsRef.current.delete(strokeId);
+      
       // Emit to server for other users
       emitStrokeStart({
         strokeId,
@@ -237,6 +307,55 @@ export default function RoomClient({ roomId }: RoomClientProps) {
     },
     [startStroke, currentColor, currentThickness, userId, emitStrokeStart]
   );
+  
+  // Flush pending points for a stroke
+  const flushPendingPoints = useCallback(
+    (strokeId: string) => {
+      const pendingPoints = pendingPointsRef.current.get(strokeId);
+      if (!pendingPoints || pendingPoints.length === 0) return;
+      
+      // Send all accumulated points in one batch
+      emitStrokeUpdate({
+        strokeId,
+        points: pendingPoints,
+      });
+      
+      // Clear the pending points
+      pendingPointsRef.current.delete(strokeId);
+    },
+    [emitStrokeUpdate]
+  );
+  
+  // Throttled function to send batched points
+  const sendBatchedPoints = useCallback(
+    (strokeId: string, point: Point) => {
+      // Add point to batch
+      const pending = pendingPointsRef.current.get(strokeId) || [];
+      pending.push(point);
+      pendingPointsRef.current.set(strokeId, pending);
+      
+      if (batchTimeoutRef.current) {
+        clearTimeout(batchTimeoutRef.current);
+      }
+      
+      if (pending.length >= 10) {
+        flushPendingPoints(strokeId);
+      } else {
+        batchTimeoutRef.current = setTimeout(() => {
+          flushPendingPoints(strokeId);
+          batchTimeoutRef.current = null;
+        }, 16); // ~60fps
+      }
+    },
+    [flushPendingPoints]
+  );
+  
+  // Throttled cursor move (only update every 50ms to reduce network traffic)
+  const throttledCursorMove = useRef(
+    throttle((point: Point, color: string) => {
+      emitCursorMove(point, color);
+    }, 50)
+  ).current;
 
   const handleClear = useCallback(() => {
     if (
@@ -375,21 +494,28 @@ export default function RoomClient({ roomId }: RoomClientProps) {
             onStrokeStart={handleStrokeStart}
             onStrokeMove={(point) => {
               if (drawingMode === "freehand") {
+                // Update local state immediately for instant feedback
                 updateStroke(point);
                 
                 if (currentStrokeId) {
-                  emitCursorMove(point, currentColor);
-                  emitStrokeUpdate({
-                    strokeId: currentStrokeId,
-                    points: [point],
-                  });
+                  throttledCursorMove(point, currentColor);
+                  
+                  sendBatchedPoints(currentStrokeId, point);
                 }
               } else {
-                emitCursorMove(point, currentColor);
+                throttledCursorMove(point, currentColor);
               }
             }}
             onStrokeEnd={(shapeData) => {
               if (drawingMode === "freehand") {
+                if (currentStrokeId) {
+                  flushPendingPoints(currentStrokeId);
+                  
+                  emitStrokeEnd({
+                    strokeId: currentStrokeId,
+                  });
+                }
+                
                 endStroke();
                 
                 activeDrawersRef.current.delete(userId);
@@ -400,12 +526,6 @@ export default function RoomClient({ roomId }: RoomClientProps) {
                   next.delete(userId);
                   return next;
                 });
-                
-                if (currentStrokeId) {
-                  emitStrokeEnd({
-                    strokeId: currentStrokeId,
-                  });
-                }
               } else if (shapeData) {
                 const shapePoints = shapeToPoints(
                   shapeData.startPoint,

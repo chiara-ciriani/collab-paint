@@ -117,55 +117,58 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Use requestAnimationFrame for smooth rendering
+    requestAnimationFrame(() => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    strokes.forEach((stroke) => {
-      if (stroke.points.length === 0) return;
+      strokes.forEach((stroke) => {
+        if (stroke.points.length === 0) return;
 
-      ctx.strokeStyle = stroke.color;
-      ctx.lineWidth = stroke.thickness;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
+        ctx.strokeStyle = stroke.color;
+        ctx.lineWidth = stroke.thickness;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
 
-      ctx.beginPath();
-      if (stroke.points.length > 0) {
-        const firstPoint = stroke.points[0];
+        ctx.beginPath();
+        if (stroke.points.length > 0) {
+          const firstPoint = stroke.points[0];
+          ctx.moveTo(firstPoint.x * canvas.width, firstPoint.y * canvas.height);
+
+          for (let i = 1; i < stroke.points.length; i++) {
+            const point = stroke.points[i];
+            ctx.lineTo(point.x * canvas.width, point.y * canvas.height);
+          }
+          
+          if (stroke.points.length === 50) {
+            ctx.closePath();
+          }
+        }
+
+        ctx.stroke();
+      });
+
+      if (drawingMode === "freehand" && currentStroke.length > 0) {
+        ctx.strokeStyle = currentColor;
+        ctx.lineWidth = currentThickness;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+
+        ctx.beginPath();
+        const firstPoint = currentStroke[0];
         ctx.moveTo(firstPoint.x * canvas.width, firstPoint.y * canvas.height);
 
-        for (let i = 1; i < stroke.points.length; i++) {
-          const point = stroke.points[i];
+        for (let i = 1; i < currentStroke.length; i++) {
+          const point = currentStroke[i];
           ctx.lineTo(point.x * canvas.width, point.y * canvas.height);
         }
-        
-        if (stroke.points.length === 50) {
-          ctx.closePath();
-        }
+
+        ctx.stroke();
       }
 
-      ctx.stroke();
+      if (drawingMode === "shape" && shapeStartPoint && shapeEndPoint) {
+        drawShape(ctx, canvas, shapeStartPoint, shapeEndPoint, shapeType);
+      }
     });
-
-    if (drawingMode === "freehand" && currentStroke.length > 0) {
-      ctx.strokeStyle = currentColor;
-      ctx.lineWidth = currentThickness;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-
-      ctx.beginPath();
-      const firstPoint = currentStroke[0];
-      ctx.moveTo(firstPoint.x * canvas.width, firstPoint.y * canvas.height);
-
-      for (let i = 1; i < currentStroke.length; i++) {
-        const point = currentStroke[i];
-        ctx.lineTo(point.x * canvas.width, point.y * canvas.height);
-      }
-
-      ctx.stroke();
-    }
-
-    if (drawingMode === "shape" && shapeStartPoint && shapeEndPoint) {
-      drawShape(ctx, canvas, shapeStartPoint, shapeEndPoint, shapeType);
-    }
   }, [strokes, currentStroke, currentColor, currentThickness, drawingMode, shapeStartPoint, shapeEndPoint, shapeType, drawShape]);
 
   useEffect(() => {

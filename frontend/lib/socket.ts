@@ -13,9 +13,11 @@ export function createSocket(): Socket {
     transports: ["websocket", "polling"],
     reconnection: true,
     reconnectionDelay: 1000,
-    reconnectionAttempts: 5,
+    reconnectionDelayMax: 5000,
+    reconnectionAttempts: Infinity, // Keep trying to reconnect
     upgrade: true,
     rememberUpgrade: false,
+    timeout: 20000,
   });
 }
 
