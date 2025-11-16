@@ -34,9 +34,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" style={{ fontSize: "16px" }}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        style={{ fontSize: "16px", margin: 0, padding: 0 }}
       >
         {children}
         <Toaster />
