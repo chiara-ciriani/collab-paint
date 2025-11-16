@@ -33,7 +33,7 @@ export default function Toolbar({
 
   return (
       <nav
-        className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 md:gap-6 p-3 sm:p-4 bg-white/90 backdrop-blur-sm border-b-2 border-purple-200/50 shadow-md overflow-x-auto sm:overflow-x-visible"
+        className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 sm:gap-4 md:gap-6 p-3 sm:p-4 bg-white/90 backdrop-blur-sm border-b-2 border-purple-200/50 shadow-md overflow-x-auto sm:overflow-x-visible max-w-full"
         aria-label="Herramientas de dibujo"
       >
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap w-full sm:w-auto order-1 flex-shrink-0">

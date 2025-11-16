@@ -415,7 +415,7 @@ export default function RoomClient({ roomId }: RoomClientProps) {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
+    <div className="flex flex-col h-screen w-full max-w-full overflow-x-hidden bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
       <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 p-3 sm:p-4 bg-white/80 backdrop-blur-sm border-b-2 border-purple-200/50 shadow-md">
         <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
           <button

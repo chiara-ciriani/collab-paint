@@ -33,6 +33,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
   ref
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cssDimensionsRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentStroke, setCurrentStroke] = useState<Point[]>([]);
   const [shapeStartPoint, setShapeStartPoint] = useState<Point | null>(null);
@@ -65,16 +66,17 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
   );
 
   const drawShape = useCallback(
-    (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, start: Point, end: Point, type: ShapeType) => {
+    (ctx: CanvasRenderingContext2D, start: Point, end: Point, type: ShapeType) => {
       ctx.strokeStyle = currentColor;
       ctx.lineWidth = currentThickness;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
 
-      const startX = start.x * canvas.width;
-      const startY = start.y * canvas.height;
-      const endX = end.x * canvas.width;
-      const endY = end.y * canvas.height;
+      const { width: cssWidth, height: cssHeight } = cssDimensionsRef.current;
+      const startX = start.x * cssWidth;
+      const startY = start.y * cssHeight;
+      const endX = end.x * cssWidth;
+      const endY = end.y * cssHeight;
 
       ctx.beginPath();
 
@@ -118,9 +120,11 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    const { width: cssWidth, height: cssHeight } = cssDimensionsRef.current;
+
     // Use requestAnimationFrame for smooth rendering
     requestAnimationFrame(() => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, cssWidth, cssHeight);
 
       strokes.forEach((stroke) => {
         if (stroke.points.length === 0) return;
@@ -142,11 +146,11 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
           if (isShape) {
             // Draw shapes without smoothing (they already have correct geometry)
             const firstPoint = stroke.points[0];
-            ctx.moveTo(firstPoint.x * canvas.width, firstPoint.y * canvas.height);
+            ctx.moveTo(firstPoint.x * cssWidth, firstPoint.y * cssHeight);
 
             for (let i = 1; i < stroke.points.length; i++) {
               const point = stroke.points[i];
-              ctx.lineTo(point.x * canvas.width, point.y * canvas.height);
+              ctx.lineTo(point.x * cssWidth, point.y * cssHeight);
             }
             
             if (stroke.points.length === 50) {
@@ -154,7 +158,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
             }
           } else {
             // Use smooth path drawing for freehand strokes
-            drawSmoothPath(ctx, stroke.points, canvas.width, canvas.height);
+            drawSmoothPath(ctx, stroke.points, cssWidth, cssHeight);
           }
         }
 
@@ -169,12 +173,12 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
 
         ctx.beginPath();
         // Use smooth path drawing for better visual quality
-        drawSmoothPath(ctx, currentStroke, canvas.width, canvas.height);
+        drawSmoothPath(ctx, currentStroke, cssWidth, cssHeight);
         ctx.stroke();
       }
 
       if (drawingMode === "shape" && shapeStartPoint && shapeEndPoint) {
-        drawShape(ctx, canvas, shapeStartPoint, shapeEndPoint, shapeType);
+        drawShape(ctx, shapeStartPoint, shapeEndPoint, shapeType);
       }
     });
   }, [strokes, currentStroke, currentColor, currentThickness, drawingMode, shapeStartPoint, shapeEndPoint, shapeType, drawShape]);
@@ -187,8 +191,22 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       const container = canvas.parentElement;
       if (!container) return;
 
-      canvas.width = container.clientWidth;
-      canvas.height = container.clientHeight;
+      const dpr = window.devicePixelRatio || 1;
+      const rect = container.getBoundingClientRect();
+      
+      cssDimensionsRef.current = { width: rect.width, height: rect.height };
+      
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+      
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.scale(dpr, dpr);
+      }
+      
       drawStrokes();
     };
 
